@@ -4,7 +4,7 @@ import { ContentCard } from './ContentCard';
 
 interface ContentListProps {
   contents: Content[];
-  onVote: (id: string, type: 'up' | 'down' | 'none') => Promise<void>;
+  onVote: (id: string, type: 'up' | 'down' | 'none') => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 }

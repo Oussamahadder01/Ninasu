@@ -107,7 +107,7 @@ export const ExerciseList = () => {
           </p>
         </div>
         <Link to="/new">
-          <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg">
+          <Button className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg">
             <Plus className="w-5 h-5 mr-2" />
             Add Exercise
           </Button>

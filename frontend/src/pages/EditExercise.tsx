@@ -51,7 +51,6 @@ export function EditExercise() {
         subject: data.subject,
         difficulty: data.difficulty,
         tags: data.tags,
-        solution_content: data.solutions[0]
       };
 
       await updateContent(id, updateData);
@@ -80,11 +79,6 @@ export function EditExercise() {
     );
   }
 
-  // Get the first solution if it exists
-  const firstSolution = exercise.solutions && exercise.solutions.length > 0 
-    ? exercise.solutions[0] 
-    : null;
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Edit Exercise</h1>
@@ -103,7 +97,6 @@ export function EditExercise() {
             class_level: exercise.class_level.id,
             subject: exercise.subject.id,
             difficulty: exercise.difficulty,
-            solution: firstSolution?.content || '',
             tags: exercise.tags?.map(tag => tag.id) || [],
           }}
         />

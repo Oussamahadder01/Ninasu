@@ -167,7 +167,7 @@ export const getClassLevels = async (): Promise<ClassLevelModel[]> => {
 };
 
 export const getSubjects = async (classLevelId?: string): Promise<SubjectModel[]> => {
-  const params = classLevelId ? { class_level: classLevelId } : {};
+  const params = classLevelId ? { class_level: classLevelId } : {};  // Si pas de classLevelId, params est vide
   const response = await api.get('/subjects/', { params });
   return response.data.results || [];
 };

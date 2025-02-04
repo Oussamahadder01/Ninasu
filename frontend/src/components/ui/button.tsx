@@ -14,7 +14,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'inline-flex items-center justify-center rounded-md font-medium transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
           {
-            'bg-blue-600 text-white hover:bg-blue-700': variant === 'primary',
+            'mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg': variant === 'primary',
             'bg-gray-100 text-gray-900 hover:bg-gray-200': variant === 'secondary',
             'hover:bg-gray-100': variant === 'ghost',
             'h-8 px-3 text-sm': size === 'sm',

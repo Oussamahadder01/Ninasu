@@ -15,7 +15,6 @@ interface ContentEditorProps {
     class_level: string;
     subject: string;
     difficulty: Difficulty;
-    solution?: string;
     tags: string[];
   }) => void;
   initialValues?: {
@@ -25,7 +24,6 @@ interface ContentEditorProps {
     class_level: string;
     subject: string;
     difficulty: Difficulty;
-    solution?: string;
     tags: string[];
   };
 }
@@ -43,7 +41,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
   const [subject, setSubject] = useState(initialValues?.subject || '');
   const [difficulty, setDifficulty] = useState<Difficulty>(initialValues?.difficulty || 'medium');
   const [selectedTags, setSelectedTags] = useState<string[]>(initialValues?.tags || []);
-  const [solution, setSolution] = useState(initialValues?.solution || '');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -58,11 +55,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
   }, []);
 
   useEffect(() => {
-    if (classLevel) {
-      loadSubjects(classLevel);
-    } else {
-      setSubjects([]);
-      setSubject('');
+    if (!classLevel) {
+      loadSubjects();  // Charge tous les subjects si aucun classLevel n'est sélectionné
     }
   }, [classLevel]);
 
@@ -94,20 +88,14 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
     }
   };
 
-  const loadSubjects = async (classLevelId: string) => {
+  const loadSubjects = async (classLevelId?: string) => {  // Le paramètre devient optionnel
     try {
       setIsLoading(true);
-      setError(null);
-      const data = await getSubjects(classLevelId);
+      const data = await getSubjects(classLevelId);  // On peut appeler getSubjects sans argument
       setSubjects(data);
-      
-      // If we have initialValues but no subject set, set it from the first available option
-      if (initialValues && !subject && data.length > 0) {
-        setSubject(data[0].id);
-      }
+      setSubject('');
     } catch (error) {
       console.error('Failed to load subjects:', error);
-      setError('Failed to load subjects. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +156,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
         class_level: classLevel,
         subject,
         difficulty,
-        solution: type === 'exercise' ? solution : undefined,
         tags: selectedTags,
       });
     } catch (error) {
@@ -241,26 +228,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
           }}
         />
       </div>
-
-      {type === 'exercise' && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Solution</label>
-          <MDEditor
-            value={solution}
-            onChange={(value) => setSolution(value || '')}
-            preview="edit"
-            height={200}
-            textareaProps={{
-              placeholder: 'Write your solution here... Use LaTeX with $...$ for inline math or $$...$$ for display math'
-            }}
-            previewOptions={{
-              components: {
-                code: renderLatexInPreview
-              }
-            }}
-          />
-        </div>
-      )}
 
       <div className="flex items-center gap-2">
         <Button
@@ -368,7 +335,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues }
 
       <Button 
         type="submit" 
-        className="w-full"
+        className="w-full bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
         disabled={loading || !classLevel || !subject || !selectedTags.length || !title || !content}
       >
         {loading ? (

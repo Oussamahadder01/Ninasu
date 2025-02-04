@@ -30,11 +30,8 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   }, []);
 
   useEffect(() => {
-    if (classLevel) {
-      loadSubjects(classLevel);
-    } else {
-      setSubjects([]);
-      setSubject('');
+    if (!classLevel) {
+      loadSubjects();  // Charge tous les subjects si aucun classLevel n'est sélectionné
     }
   }, [classLevel]);
 
@@ -59,10 +56,10 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     }
   };
 
-  const loadSubjects = async (classLevelId: string) => {
+  const loadSubjects = async (classLevelId?: string) => {  // Le paramètre devient optionnel
     try {
       setIsLoading(true);
-      const data = await getSubjects(classLevelId);
+      const data = await getSubjects(classLevelId);  // On peut appeler getSubjects sans argument
       setSubjects(data);
       setSubject('');
     } catch (error) {
@@ -149,7 +146,6 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
           <select
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            disabled={!classLevel}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="">All</option>
@@ -202,28 +198,28 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
           <div className="pt-4 border-t">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Active filters:</h4>
             <div className="flex flex-wrap gap-2">
-              {classLevel && (
-                <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-                  {classLevels.find(l => l.id === classLevel)?.name}
-                  <button
-                    onClick={() => setClassLevel('')}
-                    className="ml-2 hover:text-blue-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-              {subject && (
-                <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-                  {subjects.find(s => s.id === subject)?.name}
-                  <button
-                    onClick={() => setSubject('')}
-                    className="ml-2 hover:text-blue-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
+            {classLevel && classLevels.find(l => l.id === classLevel) && (
+            <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
+              {classLevels.find(l => l.id === classLevel)?.name}
+              <button
+                onClick={() => setClassLevel('')}
+                className="ml-2 hover:text-blue-900"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+              {subject && subjects.find(s => s.id === subject) && (
+              <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
+                {subjects.find(s => s.id === subject)?.name}
+                <button
+                  onClick={() => setSubject('')}
+                  className="ml-2 hover:text-blue-900"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
               {selectedTags.map(tagId => {
                 const chapter = chapters.find(c => c.id === tagId);
                 return chapter ? (
@@ -255,7 +251,7 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
 
         <Button 
           onClick={handleFilterChange} 
-          className="w-full"
+          className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
           disabled={isLoading}
         >
           {isLoading ? 'Applying...' : 'Apply Filters'}

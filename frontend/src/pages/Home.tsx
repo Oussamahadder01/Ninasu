@@ -11,6 +11,9 @@ export const Home = () => {
   const { isAuthenticated, user } = useAuth();
   const [recentContent, setRecentContent] = useState<Content[]>([]);
   const [upvotedContent, setUpvotedContent] = useState<Content[]>([]);
+  
+  const test = () => {
+  };
   const [stats, setStats] = useState<{
     exercisesCompleted: number;
     lessonsCompleted: number;
@@ -56,14 +59,24 @@ export const Home = () => {
     }
   };
 
-  const handleVote = async (id: string, type: 'up' | 'down') => {
-    try {
-      await voteContent(id, type);
-      loadUserContent(); // Refresh content after voting
-    } catch (error) {
-      console.error('Failed to vote:', error);
-    }
-  };
+  const handleVote = async (id: string, type: 'up' | 'down' | 'none') => {
+      try {
+        const updatedExercise = await voteContent(id, type);
+        setRecentContent(prevContents => 
+          prevContents.map(content => 
+            content.id === id ? updatedExercise : content
+          )
+        );
+        setUpvotedContent(prevContents => 
+          prevContents.map(content => 
+            content.id === id ? updatedExercise : content
+          )
+        );
+      } catch (err) {
+        console.error('Failed to vote:', err);
+      }
+    };
+  
 
   if (!isAuthenticated) {
     return (

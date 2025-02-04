@@ -412,14 +412,14 @@ export function CommentSection({
           />
           <Button 
             type="submit" 
-            className="mt-2"
+            className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
             disabled={submitting || !newComment.trim()}
           >
             {submitting ? 'Posting...' : 'Post Comment'}
           </Button>
         </form>
       ) : (
-        <div className="bg-gray-50 border rounded-lg p-4 mb-8 text-center">
+        <div className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg">
           Please <a href="/login" className="text-blue-600 hover:underline">log in</a> to comment
         </div>
       )}

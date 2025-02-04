@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Tag, ChevronDown, Lightbulb, Award } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Tag, ChevronDown, Lightbulb, Award, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getContentById, voteContent, addComment, markContentViewed, deleteContent, voteComment, updateComment, deleteComment, deleteSolution, voteSolution } from '@/lib/api';
+import { getContentById, voteContent, addComment, markContentViewed, deleteContent, voteComment, updateComment, deleteComment, deleteSolution, voteSolution, addSolution } from '@/lib/api';
 import { Content, Comment, Solution } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { renderLatexContent } from '@/lib/utils';
 import { VoteButtons } from '@/components/VoteButtons';
 import { CommentSection } from '@/components/CommentSection';
+import MDEditor from '@uiw/react-md-editor';
+import katex from 'katex';
+
+
+interface CodeProps {
+  inline?: boolean;
+  children?: React.ReactNode;
+}
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +25,8 @@ export function ExerciseDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSolution, setShowSolution] = useState(false);
+  const [solutionVisible, setSolutionVisible] = useState(false);
+  const [solution, setSolution] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -24,7 +34,28 @@ export function ExerciseDetail() {
       markContentViewed(id).catch(console.error);
     }
   }, [id]);
+  const renderLatexInPreview = ({ inline, children }: CodeProps) => {
+    if (!children) return null;
+    const text = Array.isArray(children) ? children[0] : children;
+    if (typeof text !== 'string') return null;
 
+    if (inline) {
+      if (text.startsWith('$') && text.endsWith('$')) {
+        const math = text.slice(1, -1);
+        return <span dangerouslySetInnerHTML={{ __html: katex.renderToString(math) }} />;
+      }
+    } else {
+      if (text.startsWith('$$') && text.endsWith('$$')) {
+        const math = text.slice(2, -2);
+        return (
+          <div className="text-center my-2">
+            <span dangerouslySetInnerHTML={{ __html: katex.renderToString(math, { displayMode: true }) }} />
+          </div>
+        );
+      }
+    }
+    return inline ? <code>{text}</code> : <pre><code>{text}</code></pre>;
+  };
   const loadExercise = async (exerciseId: string) => {
     try {
       setLoading(true);
@@ -47,9 +78,7 @@ export function ExerciseDetail() {
 
     try {
       if (target === 'solution' && firstSolution) {
-        // Use the new voteSolution function for solution votes
         const updatedSolution = await voteSolution(firstSolution.id, type);
-        // Update the exercise state with the new solution data
         setExercise(prev => {
           if (!prev) return prev;
           return {
@@ -58,7 +87,6 @@ export function ExerciseDetail() {
           };
         });
       } else {
-        // Use the existing voteContent function for exercise votes
         const updatedExercise = await voteContent(id, type);
         setExercise(updatedExercise);
       }
@@ -87,7 +115,7 @@ export function ExerciseDetail() {
                   replies: [...(comment.replies || []), newComment]
                 };
               }
-              if (comment.replies && comment.replies.length > 0) {
+              if (comment.replies) {
                 return {
                   ...comment,
                   replies: updateCommentsTree(comment.replies)
@@ -112,14 +140,14 @@ export function ExerciseDetail() {
     }
   };
 
-  const handleVoteComment = async (commentId: string, type: 'up' | 'down' | 'none') => {
+  const handleVoteComment = async (commentId: string, voteType: 'up' | 'down' | 'none') => {
     if (!isAuthenticated || !exercise) {
       navigate('/login');
       return;
     }
 
     try {
-      const updatedComment = await voteComment(commentId, type);
+      const updatedComment = await voteComment(commentId, voteType);
       
       const updateCommentInTree = (comments: Comment[]): Comment[] => {
         return comments.map(comment => {
@@ -230,6 +258,29 @@ export function ExerciseDetail() {
     }
   };
 
+  const toggleSolutionVisibility = () => {
+    setSolutionVisible(!solutionVisible);
+  };
+
+  const handleAddSolution = async (solutionContent: string) => {
+    if (!isAuthenticated || !exercise || !solutionContent.trim()) {
+      return;
+    }
+
+    try {
+      const newSolution = await addSolution(exercise.id, { content: solutionContent });
+      setExercise(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          solutions: prev.solutions ? [...prev.solutions, newSolution] : [newSolution]
+        };
+      });
+    } catch (err) {
+      console.error('Failed to add solution:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -271,12 +322,11 @@ export function ExerciseDetail() {
       console.error('Failed to delete solution:', err);
     }
   };
-  
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <button
-        onClick={() => navigate("/exercises/")}
+        onClick={() => navigate("/exercises/") }
         className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
@@ -291,11 +341,11 @@ export function ExerciseDetail() {
           </h1>
           {isAuthor && (
             <div className="flex gap-2 flex-shrink-0">
-              <Button variant="ghost" onClick={handleEdit}>
+              <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
                 <Edit className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              <Button variant="ghost" onClick={handleDelete} className="text-red-600">
+              <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
               </Button>
@@ -317,12 +367,12 @@ export function ExerciseDetail() {
         {/* Tags */}
         {exercise.tags && exercise.tags.length > 0 && (
           <div className="flex items-center gap-2 mb-6">
-            <Tag className="w-4 h-4 text-gray-500" />
+            <Tag className="w-4 h-4 text-gray-600" />
             <div className="flex flex-wrap gap-2">
               {exercise.tags.map((tag) => (
                 <span 
                   key={tag.id} 
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                 >
                   {tag.name}
                 </span>
@@ -371,7 +421,7 @@ export function ExerciseDetail() {
             <div className="px-8 py-6 cursor-pointer hover:bg-gray-50 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Lightbulb className={`w-6 h-6 ${showSolution ? 'text-blue-500' : 'text-gray-400'}`} />
+                  <Lightbulb className={`w-6 h-6 ${showSolution ? 'text-blue-500' : 'text-gray-600'}`} />
                   <h3 className="text-xl font-semibold">Solution</h3>
                   {firstSolution.upvotes_count > 0 && (
                     <div className="flex items-center gap-1 text-yellow-600">
@@ -410,12 +460,28 @@ export function ExerciseDetail() {
                       </Button>
                     </>
                   )}
-                  <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${showSolution ? 'rotate-180' : ''}`} />
+                  <Button
+                    variant="ghost"
+                    onClick={toggleSolutionVisibility}
+                    className="text-gray-600 hover:text-blue-600"
+                  >
+                    {solutionVisible ? (
+                      <>
+                        <EyeOff className="w-4 h-4 mr-2" />
+                        Hide Solution
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Show Solution
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {showSolution && (
+            {solutionVisible && (
               <div className="px-8 pb-6" onClick={(e) => e.stopPropagation()}>
                 <div className="border-t pt-6">
                   <div className="prose max-w-none">
@@ -432,13 +498,43 @@ export function ExerciseDetail() {
                       vertical={false}
                       userVote={firstSolution.user_vote}
                     />
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-600">
                       Solution by {firstSolution.author.username}
                     </div>
                   </div>
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Add Solution Section */}
+      {!hasSolution && isAuthor && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-6">Add Solution</h2>
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <MDEditor
+              value={solution}
+              onChange={(value) => setSolution(value || '')}
+              preview="edit"
+              height={200}
+              textareaProps={{
+                placeholder: 'Write your solution here... Use LaTeX with $...$ for inline math or $$...$$ for display math'
+              }}
+              previewOptions={{
+                components: {
+                  code: renderLatexInPreview
+                }
+              }}
+            />
+            <Button
+              onClick={() => handleAddSolution(solution)}
+              className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
+              disabled={!solution.trim()}
+            >
+              Add Solution
+            </Button>
           </div>
         </div>
       )}

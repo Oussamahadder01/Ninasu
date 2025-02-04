@@ -49,7 +49,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
   return (
     <div className="content-card flex bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden group cursor-pointer" onClick={handleCardClick}>
       {/* Vote buttons */}
-      <div className="flex-shrink-0 p-4 bg-gradient-to-b from-red-900 to-red-600">
+      <div className="flex-shrink-0 p-4 bg-gradient-to-b from-gray-900 to-red-900">
         <VoteButtons
           initialVotes={(content.upvotes_count || 0) - (content.downvotes_count || 0)}
           onVote={(type) => onVote(content.id, type)}
