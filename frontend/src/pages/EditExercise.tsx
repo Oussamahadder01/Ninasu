@@ -93,11 +93,10 @@ export function EditExercise() {
           initialValues={{
             title: exercise.title,
             content: exercise.content,
-            type: exercise.type,
             class_level: exercise.class_level.id,
             subject: exercise.subject.id,
             difficulty: exercise.difficulty,
-            tags: exercise.tags?.map(tag => tag.id) || [],
+            tags: exercise.chapters?.map(tag => tag.id) || [],
           }}
         />
       </div>

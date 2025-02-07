@@ -4,16 +4,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.utils import timezone
 from django.db.models import Count, Q
 from .models import ViewHistory, UserProfile
 from .serializers import (
     UserSerializer, 
     UserStatsSerializer, 
     UserHistorySerializer,
-    UpdateUserProfileSerializer
 )
-from exercises.models import Exercise
+from exercises.models import Exercise, ExerciseVote
 
 class LoginView(views.APIView):
     permission_classes = [AllowAny]
@@ -113,7 +111,7 @@ def get_user_stats(request):
             content__type='course'
         ).count(),
         'totalUpvotes': Exercise.objects.filter(author=user).aggregate(
-            total=Count('upvotes')
+            total=Count('votes')
         )['total'] or 0,
     }
     return Response(UserStatsSerializer(user, context={'stats': stats}).data)
@@ -126,7 +124,7 @@ def get_user_history(request):
         'recentlyViewed': Exercise.objects.filter(
             viewhistory__user=user
         ).order_by('-viewhistory__viewed_at')[:5],
-        'upvoted': Exercise.objects.filter(upvotes=user)[:5],
+        'upvoted': ExerciseVote.objects.filter(user_id=user, vote = 'up')[:5],
     }
     return Response(UserHistorySerializer(history).data)
 

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Filter, Loader2 } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { getContents, voteContent, deleteContent } from '../lib/api';
-import { Content, SortOption } from '../types';
+import { Content, SortOption, Difficulty } from '../types';
 import { Filters } from '../components/Filters';
 import { SortDropdown } from '../components/SortDropdown';
 import { ContentList } from '../components/ContentList';
+import { useNavigate } from 'react-router-dom';
 
 const ITEMS_PER_PAGE = 10;
-import { useNavigate } from 'react-router-dom';
 
 export const ExerciseList = () => {
   const navigate = useNavigate();
@@ -19,11 +19,16 @@ export const ExerciseList = () => {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [filters, setFilters] = useState<{
-    classLevel?: string;
-    subject?: string;
-    tags?: string[];
-    difficulty?: string;
-  }>({});
+    classLevels: string[];
+    subjects: string[];
+    chapters: string[];
+    difficulties: Difficulty[];
+  }>({
+    classLevels: [],
+    subjects: [],
+    chapters: [],
+    difficulties: [],
+  });
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -96,9 +101,12 @@ export const ExerciseList = () => {
     }
   };
 
+  const handleFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Exercises</h1>
@@ -115,26 +123,11 @@ export const ExerciseList = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-8">
-        {/* Filters Sidebar */}
         <div className="col-span-3">
-          <div className="sticky top-4">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center gap-2 text-gray-800">
-                  <Filter className="w-5 h-5" />
-                  <h2 className="font-semibold">Filters</h2>
-                </div>
-              </div>
-              <div className="p-4">
-                <Filters onFilterChange={setFilters} />
-              </div>
-            </div>
-          </div>
+          <Filters onFilterChange={handleFilterChange} />
         </div>
 
-        {/* Main Content */}
         <div className="col-span-9">
-          {/* Sort Controls */}
           <div className="mb-6 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <span className="text-gray-600">Sort by:</span>
@@ -145,14 +138,12 @@ export const ExerciseList = () => {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl p-4 mb-6">
               {error}
             </div>
           )}
 
-          {/* Exercise Cards */}
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -172,7 +163,6 @@ export const ExerciseList = () => {
             </div>
           )}
 
-          {/* Load More Button */}
           {hasMore && (
             <div className="mt-8 text-center">
               <Button

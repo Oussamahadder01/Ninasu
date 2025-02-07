@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 import Cookies from 'js-cookie';
-import { Content, SortOption, ClassLevelModel, SubjectModel, ChapterModel, Solution } from '../types';
+import { SortOption, ClassLevelModel, SubjectModel, ChapterModel, Solution, Difficulty } from '../types';
 
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
@@ -42,15 +42,23 @@ export const getCurrentUser = async () => {
 
 // Content API
 export const getContents = async (params: {
-  type?: string;
-  class_level?: string;
-  subject?: string;
-  tags?: string[];
-  difficulty?: string;
+  classLevels?: string[];
+  subjects?: string[];
+  chapters?: string[];
+  difficulties?: Difficulty[];
   sort?: SortOption;
   page?: number;
+  type?: string;
+  per_page?: number;
 }) => {
-  const response = await api.get('/exercises/', { params });
+  const response = await api.get('/exercises/', { 
+    params: {
+      class_levels: params.classLevels,
+      subjects: params.subjects,
+      chapters: params.chapters,
+      difficulties: params.difficulties,
+    } 
+  });
   return {
     results: response.data.results || [],
     count: response.data.count || 0,
@@ -166,17 +174,19 @@ export const getClassLevels = async (): Promise<ClassLevelModel[]> => {
   return response.data.results || [];
 };
 
-export const getSubjects = async (classLevelId?: string): Promise<SubjectModel[]> => {
+export const getSubjects = async (classLevelId?: string | string[]): Promise<SubjectModel[]> => {
   const params = classLevelId ? { class_level: classLevelId } : {};  // Si pas de classLevelId, params est vide
   const response = await api.get('/subjects/', { params });
   return response.data.results || [];
 };
 
-export const getChapters = async (subjectId?: string, classLevelId?: string): Promise<ChapterModel[]> => {
+export const getChapters = async (subjectIds?: string |string[], classLevelIds?: string | string[]): Promise<ChapterModel[]> => {
   const params = {
-    ...(subjectId && { subject: subjectId }),
-    ...(classLevelId && { class_level: classLevelId }),
+    ...(subjectIds && { subject: subjectIds }),
+    ...(classLevelIds && { class_level:  classLevelIds }),
   };
+
+  
   const response = await api.get('/chapters/', { params });
   return response.data.results || [];
 };

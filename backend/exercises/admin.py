@@ -1,0 +1,67 @@
+from django.contrib import admin
+from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, ExerciseVote, CommentVote, SolutionVote
+
+@admin.register(ClassLevel)
+class ClassLevelAdmin(admin.ModelAdmin):
+    list_display = ('name', 'order')
+    ordering = ('order',)
+    search_fields = ('name',)
+
+@admin.register(Subject)
+class SubjectAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    filter_horizontal = ('class_levels',)
+    search_fields = ('name',)
+
+@admin.register(Chapter)
+class ChapterAdmin(admin.ModelAdmin):
+    list_display = ('name', 'subject', 'order')
+    list_filter = ('subject',)
+    ordering = ('subject', 'order')
+    search_fields = ('name', 'subject__name')
+
+@admin.register(Exercise)
+class ExerciseAdmin(admin.ModelAdmin):
+    list_display = ('title', 'difficulty', 'author', 'created_at', 'view_count')
+    list_filter = ('difficulty', 'chapters', 'class_levels')
+    filter_horizontal = ('chapters', 'class_levels')
+    search_fields = ('title', 'content', 'author__username')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'updated_at', 'view_count')
+
+@admin.register(Solution)
+class SolutionAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'author', 'created_at')
+    list_filter = ('exercise__difficulty',)
+    search_fields = ('exercise__title', 'content', 'author__username')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'author', 'created_at', 'parent')
+    list_filter = ('exercise__difficulty',)
+    search_fields = ('exercise__title', 'content', 'author__username')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at',)
+
+@admin.register(ExerciseVote)
+class ExerciseVoteAdmin(admin.ModelAdmin):
+    list_display = ('exercise', 'user', 'vote', 'created_at')
+    list_filter = ('vote',)
+    search_fields = ('exercise__title', 'user__username')
+    date_hierarchy = 'created_at'
+
+@admin.register(CommentVote)
+class CommentVoteAdmin(admin.ModelAdmin):
+    list_display = ('comment', 'user', 'vote', 'created_at')
+    list_filter = ('vote',)
+    search_fields = ('comment__content', 'user__username')
+    date_hierarchy = 'created_at'
+
+@admin.register(SolutionVote)
+class SolutionVoteAdmin(admin.ModelAdmin):
+    list_display = ('solution', 'user', 'vote', 'created_at')
+    list_filter = ('vote',)
+    search_fields = ('solution__exercise__title', 'user__username')
+    date_hierarchy = 'created_at'

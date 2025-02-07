@@ -1,262 +1,177 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from './ui/button';
-import { Difficulty } from '@/types';
-import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
-import {ClassLevelModel , SubjectModel, ChapterModel} from '@/types/index'
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
+import { ClassLevelModel, SubjectModel, ChapterModel, Difficulty } from '@/types';
 
 interface FiltersProps {
   onFilterChange: (filters: {
-    classLevel?: string;
-    subject?: string;
-    tags?: string[];
-    difficulty?: string;
+    classLevels: string[];
+    subjects: string[];
+    chapters: string[];
+    difficulties: Difficulty[];
   }) => void;
 }
 
-export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
-  const [classLevel, setClassLevel] = useState<string>('');
-  const [subject, setSubject] = useState<string>('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [difficulty, setDifficulty] = useState<Difficulty | undefined>();
+type FilterCategories = {
+  classLevels: string[];
+  subjects: string[];
+  chapters: string[];
+  difficulties: Difficulty[];
+};
 
+export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   const [classLevels, setClassLevels] = useState<ClassLevelModel[]>([]);
   const [subjects, setSubjects] = useState<SubjectModel[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState<FilterCategories>({
+    classLevels: [],
+    subjects: [],
+    chapters: [],
+    difficulties: [],
+  });
 
   useEffect(() => {
     loadClassLevels();
   }, []);
 
   useEffect(() => {
-    if (!classLevel) {
-      loadSubjects();  // Charge tous les subjects si aucun classLevel n'est sélectionné
-    }
-  }, [classLevel]);
+    setSubjects([]); // Reset subjects when classLevels change
+    loadSubjects();
+  }, [selectedFilters.classLevels]);
 
   useEffect(() => {
-    if (classLevel && subject) {
-      loadChapters(subject, classLevel);
-    } else {
-      setChapters([]);
-      setSelectedTags([]);
-    }
-  }, [classLevel, subject]);
+    setChapters([]); // Reset chapters when subjects or classLevels change
+    loadChapters();
+  }, [selectedFilters.subjects, selectedFilters.classLevels]);
+
+  useEffect(() => {
+    onFilterChange(selectedFilters);
+  }, [selectedFilters]);
 
   const loadClassLevels = async () => {
     try {
-      setIsLoading(true);
       const data = await getClassLevels();
       setClassLevels(data);
     } catch (error) {
       console.error('Failed to load class levels:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const loadSubjects = async (classLevelId?: string) => {  // Le paramètre devient optionnel
+  const loadSubjects = async () => {
     try {
-      setIsLoading(true);
-      const data = await getSubjects(classLevelId);  // On peut appeler getSubjects sans argument
-      setSubjects(data);
-      setSubject('');
+      const data = await getSubjects(selectedFilters.classLevels);
+      setSubjects(removeDuplicates(data));
     } catch (error) {
       console.error('Failed to load subjects:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const loadChapters = async (subjectId: string, classLevelId: string) => {
+  const loadChapters = async () => {
     try {
-      setIsLoading(true);
-      const data = await getChapters(subjectId, classLevelId);
-      setChapters(data);
-      setSelectedTags([]);
+      const data = await getChapters(selectedFilters.subjects, selectedFilters.classLevels);
+      setChapters(removeDuplicates(data));
     } catch (error) {
       console.error('Failed to load chapters:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleFilterChange = () => {
-    setIsLoading(true);
-    onFilterChange({
-      classLevel: classLevel || undefined,
-      subject: subject || undefined,
-      tags: selectedTags.length > 0 ? selectedTags : undefined,
-      difficulty,
+  const removeDuplicates = <T extends { id: string }>(array: T[]): T[] => {
+    const uniqueIds = new Set();
+    return array.filter(item => {
+      if (uniqueIds.has(item.id)) {
+        return false;
+      }
+      uniqueIds.add(item.id);
+      return true;
     });
-    setIsLoading(false);
   };
 
-  const clearFilters = () => {
-    setClassLevel('');
-    setSubject('');
-    setSelectedTags([]);
-    setDifficulty(undefined);
-    onFilterChange({});
+  const toggleFilter = (category: keyof FilterCategories, value: string | Difficulty) => {
+    setSelectedFilters(prev => {
+      const newFilters = { ...prev };
+      if (category === 'difficulties') {
+        if (newFilters.difficulties.includes(value as Difficulty)) {
+          newFilters.difficulties = newFilters.difficulties.filter(v => v !== value);
+        } else {
+          newFilters.difficulties = [...newFilters.difficulties, value as Difficulty];
+        }
+      } else {
+        if (newFilters[category].includes(value as string)) {
+          newFilters[category] = newFilters[category].filter(v => v !== value);
+        } else {
+          newFilters[category] = [...newFilters[category], value as string];
+        }
+      }
+      return newFilters;
+    });
   };
 
-  const toggleTag = (tagId: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId)
-        ? prev.filter(id => id !== tagId)
-        : [...prev, tagId]
-    );
+  const getFilterName = (category: keyof FilterCategories, id: string) => {
+    const source = { classLevels, subjects, chapters };
+    if (category in source) {
+      const items = source[category as keyof typeof source];
+      const found = items.find(item => item.id === id);
+      return found ? found.name : id;
+    }
+    return id.charAt(0).toUpperCase() + id.slice(1);
   };
+
+  const renderFilterCategory = (
+    title: string,
+    category: keyof FilterCategories,
+    items: { id: string; name: string }[] | Difficulty[]
+  ) => (
+    <div className="mb-6">
+      <h3 className="text-lg font-semibold mb-2">{title}</h3>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item, index) => {
+          const itemId = typeof item === 'string' ? item : item.id;
+          const itemName = typeof item === 'string' ? item : item.name;
+          return (
+            <button
+              key={`${category}-${itemId}-${index}`} // Ensure unique keys
+              onClick={() => toggleFilter(category, itemId)}
+              className={`px-3 py-1 rounded-full text-sm ${
+                selectedFilters[category].includes(itemId as any)
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {itemName}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-md space-y-4 sticky top-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold text-lg">Filters</h3>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={clearFilters} 
-          disabled={isLoading}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          Clear all
-        </Button>
-      </div>
-      
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Class Level</label>
-          <select
-            value={classLevel}
-            onChange={(e) => setClassLevel(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="">All</option>
-            {classLevels.map((level) => (
-              <option key={level.id} value={level.id}>
-                {level.name}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold mb-4">Filters</h2>
+      {renderFilterCategory('Class Levels', 'classLevels', classLevels)}
+      {renderFilterCategory('Subjects', 'subjects', subjects)}
+      {renderFilterCategory('Chapters', 'chapters', chapters)}
+      {renderFilterCategory('Difficulty', 'difficulties', ['easy', 'medium', 'hard'] as Difficulty[])}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Subject</label>
-          <select
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="">All</option>
-            {subjects.map((subj) => (
-              <option key={subj.id} value={subj.id}>
-                {subj.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {chapters.length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Topics</label>
-            <div className="space-y-2">
-              {chapters.map((chapter) => (
-                <label
-                  key={chapter.id}
-                  className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-gray-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTags.includes(chapter.id)}
-                    onChange={() => toggleTag(chapter.id)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{chapter.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Difficulty</label>
-          <select
-            value={difficulty || ''}
-            onChange={(e) => setDifficulty(e.target.value as Difficulty || undefined)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="">All</option>
-            <option value="easy">Easy</option>
-            <option value="medium">Medium</option>
-            <option value="hard">Hard</option>
-          </select>
-        </div>
-
-        {/* Selected filters summary */}
-        {(classLevel || subject || selectedTags.length > 0 || difficulty) && (
-          <div className="pt-4 border-t">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Active filters:</h4>
-            <div className="flex flex-wrap gap-2">
-            {classLevel && classLevels.find(l => l.id === classLevel) && (
-            <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-              {classLevels.find(l => l.id === classLevel)?.name}
-              <button
-                onClick={() => setClassLevel('')}
-                className="ml-2 hover:text-blue-900"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-              {subject && subjects.find(s => s.id === subject) && (
-              <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-                {subjects.find(s => s.id === subject)?.name}
+      {Object.entries(selectedFilters).some(([_, values]) => values.length > 0) && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-2">Active Filters</h3>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(selectedFilters).map(([category, values]) =>
+              values.map(value => (
                 <button
-                  onClick={() => setSubject('')}
-                  className="ml-2 hover:text-blue-900"
+                  key={`${category}-${value}`}
+                  onClick={() => toggleFilter(category as keyof FilterCategories, value)}
+                  className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 flex items-center"
                 >
-                  <X className="w-3 h-3" />
+                  {getFilterName(category as keyof FilterCategories, value)}
+                  <X className="w-4 h-4 ml-1" />
                 </button>
-              </div>
+              ))
             )}
-              {selectedTags.map(tagId => {
-                const chapter = chapters.find(c => c.id === tagId);
-                return chapter ? (
-                  <div key={tagId} className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-                    {chapter.name}
-                    <button
-                      onClick={() => toggleTag(tagId)}
-                      className="ml-2 hover:text-blue-900"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : null;
-              })}
-              {difficulty && (
-                <div className="inline-flex items-center bg-blue-50 text-blue-700 rounded-full px-3 py-1 text-sm">
-                  {difficulty}
-                  <button
-                    onClick={() => setDifficulty(undefined)}
-                    className="ml-2 hover:text-blue-900"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
-        )}
-
-        <Button 
-          onClick={handleFilterChange} 
-          className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Applying...' : 'Apply Filters'}
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

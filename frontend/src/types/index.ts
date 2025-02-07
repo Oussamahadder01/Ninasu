@@ -1,5 +1,4 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type ContentType = 'exercise' | 'course';
 export type SortOption = 'newest' | 'oldest' | 'most_upvoted' | 'most_commented';
 export type VoteType = 'up' | 'down' | 'none';
 export type ClassLevel = 
@@ -46,10 +45,9 @@ export interface Content {
   id: string;
   title: string;
   content: string;
-  type: ContentType;
   class_level: ClassLevelModel;
   subject: SubjectModel;
-  tags: ChapterModel[];
+  chapters: ChapterModel[];
   difficulty: Difficulty;
   author: User;
   created_at: string;
