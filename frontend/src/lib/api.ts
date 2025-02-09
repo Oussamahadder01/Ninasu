@@ -71,9 +71,9 @@ export const createContent = async (data: {
   title: string;
   content: string;
   type: string;
-  class_level: string;
+  class_level: string[];
   subject: string;
-  tags: string[];
+  chapters: string[];
   difficulty: string;
   exercise_solution?: string;
 }) => {
@@ -89,10 +89,9 @@ export const getContentById = async (id: string) => {
 export const updateContent = async (id: string, data: {
   title: string;
   content: string;
-  type: string;
-  class_level: string;
+  class_levels: string;
   subject: string;
-  tags: string[];
+  chapters: string[];
   difficulty: string;
   solution_content?: string;
 }) => {

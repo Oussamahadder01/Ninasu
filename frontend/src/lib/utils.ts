@@ -15,7 +15,7 @@ export function renderLatexContent(content: string): string {
   // Replace inline math: $...$ with rendered LaTeX
   content = content.replace(/\$([^\$]+)\$/g, (match, latex) => {
     try {
-      return katex.renderToString(latex);
+      return katex.renderToString(latex, { displayMode: false });
     } catch (error) {
       console.error('LaTeX parsing error:', error);
       return match;

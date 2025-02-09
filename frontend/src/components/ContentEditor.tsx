@@ -1,34 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import MDEditor from '@uiw/react-md-editor';
-import './ContentEditor.css';
 import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
-import { ClassLevelModel, SubjectModel, ChapterModel } from '@/types';
+import { ClassLevelModel, SubjectModel, ChapterModel, Difficulty } from '@/types';
 import { useNavigate } from 'react-router-dom';
+import DualPaneEditor from './DualPaneEditor';
 
 interface ContentEditorProps {
-  onSubmit: (data: {
+  onSubmit: (data: any) => void;
+  initialValues?: {
     title: string;
     content: string;
-    class_level: string[];
-    subject: string;
-    difficulty: string;
-    chapters: string[];
-  }) => Promise<void>;
+    class_level?: string[];
+    subject?: string;
+    difficulty?: Difficulty;
+    chapters?: string[];
+  };
 }
 
-const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
+const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues = {
+  title: '',
+  content: '',
+  class_level: [],
+  subject: '',
+  difficulty: 'easy',
+  chapters: [],
+} }) => {
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [title, setTitle] = useState(initialValues.title);
+  const [content, setContent] = useState(initialValues.content);
   const [classLevels, setClassLevels] = useState<ClassLevelModel[]>([]);
   const [subjects, setSubjects] = useState<SubjectModel[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
-  const [selectedClassLevels, setSelectedClassLevels] = useState<string[]>([]);
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
-  const [difficulty, setDifficulty] = useState('');
+  const [selectedClassLevels, setSelectedClassLevels] = useState<string[]>(initialValues.class_level || []);
+  const [selectedSubject, setSelectedSubject] = useState(initialValues.subject || '');
+  const [selectedChapters, setSelectedChapters] = useState<string[]>(initialValues.chapters || []);
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialValues.difficulty || 'easy');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [solution, setSolution] = useState<string>('');
 
   useEffect(() => {
     loadClassLevels();
@@ -39,8 +47,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
   }, [selectedClassLevels]);
 
   useEffect(() => {
-     loadChapters();
-  }, [selectedClassLevels,selectedSubject]);
+    if (selectedSubject && selectedClassLevels.length) loadChapters();
+  }, [selectedClassLevels, selectedSubject]);
 
   const loadClassLevels = async () => {
     try {
@@ -50,6 +58,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
       console.error('Failed to load class levels:', error);
     }
   };
+
   const getUniqueById = <T extends { id: string }>(array: T[]): T[] => {
     return Array.from(new Map(array.map(item => [item.id, item])).values());
   };
@@ -66,11 +75,11 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
 
   const loadChapters = async () => {
     try {
-      const data = await getChapters([selectedSubject],selectedClassLevels);
+      const data = await getChapters([selectedSubject], selectedClassLevels);
       const uniqueChapters = getUniqueById(data);
       setChapters(uniqueChapters);
     } catch (error) {
-      console.error('Failed to load subjects:', error);
+      console.error('Failed to load chapters:', error);
     }
   };
 
@@ -82,10 +91,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
 
   const handleSubjectSelection = (id: string) => {
     setSelectedSubject(prev => (prev === id ? '' : id));
-  };
-
-  const handleDifficultySelection = (level: string) => {
-    setDifficulty(prev => (prev === level ? '' : level));
   };
 
   const handleSubmit = async () => {
@@ -106,18 +111,13 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
       await onSubmit({
         title,
         content,
-        class_level: selectedClassLevels,
+        class_levels: selectedClassLevels,
         subject: selectedSubject,
         difficulty,
         chapters: selectedChapters,
+        solution_content: solution
       });
       console.log('Content submitted successfully');
-      setTitle('');
-      setContent('');
-      setSelectedClassLevels([]);
-      setSelectedSubject('');
-      setSelectedChapters([]);
-      setDifficulty('');
     } catch (error) {
       console.error('Failed to create content:', error);
       setError('Failed to create content. Please try again.');
@@ -127,22 +127,14 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
   };
 
   const handleCancel = () => {
-    setTitle('');
-    setContent('');
-    setSelectedClassLevels([]);
-    setSelectedSubject('');
-    setSelectedChapters([]);
-    setDifficulty('');
-    setError(null);
+    navigate(-1);
   };
+
 
   return (
     <div className="content-editor p-6 bg-white rounded-lg shadow-md">
-
-      {/* Error Message */}
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      {/* Title Input */}
       <div className="mb-6">
         <label htmlFor="title" className="block text-lg font-medium mb-2">Title</label>
         <input
@@ -155,7 +147,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
         />
       </div>
 
-      {/* Class Level Selection (Multiple Toggle Buttons) */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Class Levels</h3>
         <div className="flex flex-wrap gap-2">
@@ -173,7 +164,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
         </div>
       </div>
 
-      {/* Subject Selection (Single Toggle Button) */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Subject</h3>
         <div className="flex flex-wrap gap-2">
@@ -191,9 +181,6 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
         </div>
       </div>
 
-      
-
-      {/* Chapters Selection */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Chapters</h3>
         <div className="flex flex-wrap gap-2">
@@ -211,47 +198,46 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit }) => {
         </div>
       </div>
 
-      {/* Difficulty Selection (Single Toggle Button) */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Difficulty</h3>
         <div className="flex flex-wrap gap-2">
           {['easy', 'medium', 'hard'].map(level => (
             <button
               key={level}
-              onClick={() => handleDifficultySelection(level)}
+              onClick={() => setDifficulty(level as Difficulty)}
               className={`px-3 py-1 rounded-full text-sm ${
                 difficulty === level ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
+              {level}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Content Editor */}
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-2">Content</h3>
-        <MDEditor
-          value={content}
-          onChange={(value) => setContent(value || '')}
-          height={400}
-          className="w-full content-editor"
-        />
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-2">Content (LaTeX)</h3>
+        {/* DualPaneEditor for LaTeX input and live preview */}
+        <DualPaneEditor content={content} setContent={setContent} />
       </div>
 
-      {/* Submit and Cancel Buttons */}
-      <div className="mt-6 flex justify-end gap-4">
+      <div className="mb-6">
+        <h3 className="text-lg font-semibold mb-2">Solution (LaTeX)</h3>
+        {/* DualPaneEditor for LaTeX input and live preview */}
+        <DualPaneEditor content={solution} setContent={setSolution} />
+      </div>
+
+      <div className="mt-6 flex justify-end gap-2">
         <button
           onClick={handleCancel}
-          className="bg-red-500 hover:bg-red-600 text-white font-semibold px-6 py-2 rounded-lg"
+          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
         >
           Cancel
         </button>
         <button
           onClick={handleSubmit}
-          className={`px-6 py-2 font-semibold rounded-lg text-white ${
-            isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+          className={`px-6 py-2 bg-blue-500 text-white rounded-lg ${
+            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
           }`}
           disabled={isLoading}
         >

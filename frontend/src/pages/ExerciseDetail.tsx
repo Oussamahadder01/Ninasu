@@ -11,7 +11,29 @@ import { CommentSection } from '@/components/CommentSection';
 import MDEditor from '@uiw/react-md-editor';
 import katex from 'katex';
 
+import { InlineMath, BlockMath } from "react-katex";
 
+
+  // Function to render math content
+  const renderMathContent = (text: string) => {
+    const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('$$') && part.endsWith('$$')) {
+        // Display math (centered)
+        return (
+          <div key={index} className="my-2 text-center">
+            <BlockMath math={part.slice(2, -2)} />
+          </div>
+        );
+      } else if (part.startsWith('$') && part.endsWith('$')) {
+        // Inline math (left-aligned)
+        return <InlineMath key={index} math={part.slice(1, -1)} />;
+      } else {
+        // Regular text
+        return <span key={index}>{part}</span>;
+      }
+    });
+  };
 interface CodeProps {
   inline?: boolean;
   children?: React.ReactNode;
@@ -56,6 +78,19 @@ export function ExerciseDetail() {
     }
     return inline ? <code>{text}</code> : <pre><code>{text}</code></pre>;
   };
+
+  const getDifficultyColor = (difficulty: string): string => {
+    switch (difficulty) {
+      case 'easy':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'hard':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
   const loadExercise = async (exerciseId: string) => {
     try {
       setLoading(true);
@@ -83,7 +118,7 @@ export function ExerciseDetail() {
           if (!prev) return prev;
           return {
             ...prev,
-            solutions: prev.solutions ? [updatedSolution, ...prev.solutions.slice(1)] : [updatedSolution]
+            solutions: prev.solution ? [updatedSolution, ...prev.solution.slice(1)] : [updatedSolution]
           };
         });
       } else {
@@ -273,7 +308,7 @@ export function ExerciseDetail() {
         if (!prev) return prev;
         return {
           ...prev,
-          solutions: prev.solutions ? [...prev.solutions, newSolution] : [newSolution]
+          solutions: prev.solution ? [...prev.solution, newSolution] : [newSolution]
         };
       });
     } catch (err) {
@@ -300,8 +335,8 @@ export function ExerciseDetail() {
   }
 
   const isAuthor = user?.id === exercise.author.id;
-  const firstSolution: Solution | undefined = exercise.solutions?.[0];
-  const hasSolution = exercise.type === 'exercise' && firstSolution;
+  const firstSolution = exercise.solution;
+  const hasSolution = firstSolution;
   const canEditSolution = firstSolution && user?.id === firstSolution.author.id;
 
   const handleEditSolution = () => {
@@ -324,52 +359,35 @@ export function ExerciseDetail() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate("/exercises/") }
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back
-      </button>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="flex items-center mb-6">
+            <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
+      <h2 className="text-2xl font-bold mb-2">{exercise.title}</h2>
+      </div>
 
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-4">
         {/* Content header */}
-        <div className="flex justify-between items-start mb-4">
-          <h1 className="text-3xl font-bold truncate max-w-[600px]" title={exercise.title}>
-            {exercise.title}
-          </h1>
-          {isAuthor && (
-            <div className="flex gap-2 flex-shrink-0">
-              <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-              <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button>
-            </div>
-          )}
-        </div>
         
-        {/* Metadata */}
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-          <span className="capitalize">{exercise.type}</span>
-          <span>•</span>
-          <span>{exercise.class_level?.name}</span>
-          <span>•</span>
-          <span>{exercise.subject?.name}</span>
-          <span>•</span>
-          <span className="capitalize">{exercise.difficulty}</span>
-        </div>
+        <div className="flex items-center justify-between mb-4">
+            {/* Left: Class Levels & Subject */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>{exercise.class_levels.map(level => level.name).join(" | ")}</span>
+              <span>•</span>
+              <span>{exercise.subject?.name}</span>
+            </div>
+            
+            {/* Right: Difficulty */}
+            <span className={`px-4 py-0.5 rounded-full text-sm font-semibold border ${getDifficultyColor(exercise.difficulty)}`}>
+              {exercise.difficulty}
+            </span>
+          </div>
 
         {/* Tags */}
-        {exercise.tags && exercise.tags.length > 0 && (
-          <div className="flex items-center gap-2 mb-6">
+        {exercise.chapters && exercise.chapters.length > 0 && (
+          <div className="flex items-center gap-1 mb-4">
             <Tag className="w-4 h-4 text-gray-600" />
             <div className="flex flex-wrap gap-2">
-              {exercise.tags.map((tag) => (
+              {exercise.chapters.map((tag) => (
                 <span 
                   key={tag.id} 
                   className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
@@ -383,25 +401,43 @@ export function ExerciseDetail() {
 
         {/* Content */}
         <div className="prose max-w-none mb-8">
-          <div 
-            dangerouslySetInnerHTML={{ 
-              __html: renderLatexContent(exercise.content) 
-            }} 
-          />
+        {renderMathContent(exercise.content)}
+
         </div>
+        
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t pt-4">
-          <VoteButtons
-            initialVotes={(exercise.upvotes_count || 0) - (exercise.downvotes_count || 0)}
-            onVote={(type) => handleVote(type, 'exercise')}
-            vertical={false}
-            userVote={exercise.user_vote}
-          />
-          <div className="text-sm text-gray-600">
-            by {exercise.author?.username} • {new Date(exercise.created_at).toLocaleDateString()}
-          </div>
-        </div>
+        <div className="flex items-center border-t pt-4">
+  {/* Boutons de vote à gauche */}
+  <div className="flex-1">
+    <VoteButtons
+      initialVotes={(exercise.upvotes_count || 0) - (exercise.downvotes_count || 0)}
+      onVote={(type) => handleVote(type, 'exercise')}
+      vertical={false}
+      userVote={exercise.user_vote}
+    />
+  </div>
+
+  {/* Auteur & Date */}
+  <div className="text-sm text-gray-600">
+    by {exercise.author?.username} • {new Date(exercise.created_at).toLocaleDateString()}
+  </div>
+
+  {/* Boutons Edit & Delete à droite */}
+  {isAuthor && (
+    <div className="flex gap-2 flex-shrink-0 ml-4">
+      <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
+        <Edit className="w-4 h-4 mr-2" />
+        Edit
+      </Button>
+      <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+        <Trash2 className="w-4 h-4 mr-2" />
+        Delete
+      </Button>
+    </div>
+  )}
+</div>
+
       </div>
 
       {/* Solution Section */}
@@ -434,49 +470,38 @@ export function ExerciseDetail() {
                 </div>
                 
                 <div className="flex items-center gap-4">
-                  {canEditSolution && (
-                    <>
-                      <Button 
-                        variant="ghost" 
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent solution toggle
-                          handleEditSolution();
-                        }} 
-                        className="text-gray-600 hover:text-blue-600"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent solution toggle
-                          handleDeleteSolution();
-                        }} 
-                        className="text-gray-600 hover:text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </Button>
-                    </>
-                  )}
+                {canEditSolution && (
+                  <div className="flex items-center gap-0">
+                    <Button 
+                      variant="ghost" 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent solution toggle
+                        handleEditSolution();
+                      }} 
+                      className="text-gray-600 hover:text-blue-600 p-3 m-3"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent solution toggle
+                        handleDeleteSolution();
+                      }} 
+                      className="text-gray-600 hover:text-red-600 p-0 m-0"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+                  </div>
+                )}
+
                   <Button
-                    variant="ghost"
-                    onClick={toggleSolutionVisibility}
-                    className="text-gray-600 hover:text-blue-600"
-                  >
-                    {solutionVisible ? (
-                      <>
-                        <EyeOff className="w-4 h-4 mr-2" />
-                        Hide Solution
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Show Solution
-                      </>
-                    )}
-                  </Button>
+                variant="ghost"
+                onClick={toggleSolutionVisibility}
+                className="text-gray-600 hover:text-blue-600"
+              >
+                <ChevronDown className={`w-8 h-8 transition-transform ${solutionVisible ? "rotate-180" : ""}`} />
+              </Button>
                 </div>
               </div>
             </div>

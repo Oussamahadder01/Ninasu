@@ -35,12 +35,10 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   }, []);
 
   useEffect(() => {
-    setSubjects([]); // Reset subjects when classLevels change
     loadSubjects();
   }, [selectedFilters.classLevels]);
 
   useEffect(() => {
-    setChapters([]); // Reset chapters when subjects or classLevels change
     loadChapters();
   }, [selectedFilters.subjects, selectedFilters.classLevels]);
 
@@ -57,34 +55,32 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     }
   };
 
-  const loadSubjects = async () => {
-    try {
-      const data = await getSubjects(selectedFilters.classLevels);
-      setSubjects(removeDuplicates(data));
-    } catch (error) {
-      console.error('Failed to load subjects:', error);
-    }
-  };
-
-  const loadChapters = async () => {
-    try {
-      const data = await getChapters(selectedFilters.subjects, selectedFilters.classLevels);
-      setChapters(removeDuplicates(data));
-    } catch (error) {
-      console.error('Failed to load chapters:', error);
-    }
-  };
-
-  const removeDuplicates = <T extends { id: string }>(array: T[]): T[] => {
-    const uniqueIds = new Set();
-    return array.filter(item => {
-      if (uniqueIds.has(item.id)) {
-        return false;
+  const getUniqueById = <T extends { id: string }>(array: T[]): T[] => {
+      return Array.from(new Map(array.map(item => [item.id, item])).values());
+    };
+  
+    const loadSubjects = async () => {
+      try {
+        const data = await getSubjects(selectedFilters.classLevels);
+        const uniqueSubjects = getUniqueById(data);
+        setSubjects(uniqueSubjects);
+      } catch (error) {
+        console.error('Failed to load subjects:', error);
       }
-      uniqueIds.add(item.id);
-      return true;
-    });
-  };
+    };
+  
+    const loadChapters = async () => {
+      try {
+        const data = await getChapters(selectedFilters.subjects, selectedFilters.classLevels);
+        const uniqueChapters = getUniqueById(data);
+        setChapters(uniqueChapters);
+      } catch (error) {
+        console.error('Failed to load chapters:', error);
+      }
+    };
+  
+
+
 
   const toggleFilter = (category: keyof FilterCategories, value: string | Difficulty) => {
     setSelectedFilters(prev => {

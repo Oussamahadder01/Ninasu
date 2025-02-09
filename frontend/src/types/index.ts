@@ -45,7 +45,7 @@ export interface Content {
   id: string;
   title: string;
   content: string;
-  class_level: ClassLevelModel;
+  class_levels: ClassLevelModel[];
   subject: SubjectModel;
   chapters: ChapterModel[];
   difficulty: Difficulty;
@@ -55,7 +55,7 @@ export interface Content {
   upvotes_count: number;
   downvotes_count: number;
   user_vote: VoteType;
-  solutions?:  Solution[];  
+  solution?:  Solution[];  
   comments: Comment[];
   view_count: number;
 }

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import ContentEditor from '../components/ContentEditor';
 import { getContentById, updateContent } from '../lib/api';
-import { Content } from '../types';
+import { Content, Difficulty } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft } from 'lucide-react';
+import 'katex/dist/katex.min.css';
 
 export function EditExercise() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +26,6 @@ export function EditExercise() {
       setLoading(true);
       const data = await getContentById(exerciseId);
       
-      // Check if the user is the author
       if (user?.id !== data.author.id) {
         navigate('/exercises');
         return;
@@ -43,17 +44,7 @@ export function EditExercise() {
     if (!id) return;
 
     try {
-      const updateData = {
-        title: data.title,
-        content: data.content,
-        type: data.type,
-        class_level: data.class_level,
-        subject: data.subject,
-        difficulty: data.difficulty,
-        tags: data.tags,
-      };
-
-      await updateContent(id, updateData);
+      await updateContent(id, data);
       navigate(`/exercises/${id}`);
     } catch (err) {
       console.error('Failed to update exercise:', err);
@@ -81,7 +72,11 @@ export function EditExercise() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Edit Exercise</h1>
+      <div className="flex items-center mb-6">
+        <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
+        <h1 className="text-3xl font-bold mb-2">Edit Exercise</h1>
+      </div>
+
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
           {error}
@@ -93,10 +88,10 @@ export function EditExercise() {
           initialValues={{
             title: exercise.title,
             content: exercise.content,
-            class_level: exercise.class_level.id,
-            subject: exercise.subject.id,
-            difficulty: exercise.difficulty,
-            tags: exercise.chapters?.map(tag => tag.id) || [],
+            class_level: exercise.class_levels?.map(level => level.id) || [],
+            subject: exercise.subject?.id || '',
+            difficulty: exercise.difficulty as Difficulty,
+            chapters: exercise.chapters?.map(chapter => chapter.id) || [],
           }}
         />
       </div>

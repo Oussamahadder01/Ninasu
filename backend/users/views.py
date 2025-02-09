@@ -4,6 +4,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django.db.models import Count, Q
 from .models import ViewHistory, UserProfile
 from .serializers import (

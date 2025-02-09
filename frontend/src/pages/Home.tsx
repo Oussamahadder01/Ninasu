@@ -1,189 +1,233 @@
-import React, { useEffect, useState } from 'react';
-import { ContentList } from '../components/ContentList';
-import { Button } from '../components/ui/button';
-import { Plus, BookOpen, GraduationCap, Trophy } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Content } from '../types';
-import { getUserHistory, getUserStats, voteContent } from '../lib/api';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Search, CheckCircle, TrendingUp, Users, Send, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ContentCard } from '@/components/ContentCard';
+import { getContents, voteContent } from '@/lib/api';
+import { Content } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
-export const Home = () => {
-  const { isAuthenticated, user } = useAuth();
-  const [recentContent, setRecentContent] = useState<Content[]>([]);
-  const [upvotedContent, setUpvotedContent] = useState<Content[]>([]);
-  
-  const test = () => {
-  };
-  const [stats, setStats] = useState<{
-    exercisesCompleted: number;
-    lessonsCompleted: number;
-    totalUpvotes: number;
-    streak: number;
-    level: number;
-    progress: number;
-  }>({
-    exercisesCompleted: 0,
-    lessonsCompleted: 0,
-    totalUpvotes: 0,
-    streak: 0,
-    level: 1,
-    progress: 0,
-  });
+export function Home() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [popularExercises, setPopularExercises] = useState<Content[]>([]);
   const [loading, setLoading] = useState(true);
-  
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
   useEffect(() => {
-    if (isAuthenticated) {
-      loadUserContent();
-      loadUserStats();
-    }
-  }, [isAuthenticated]);
+    fetchPopularExercises();
+  }, []);
 
-  const loadUserContent = async () => {
+  const fetchPopularExercises = async () => {
     try {
-      const history = await getUserHistory();
-      setRecentContent(history.recentlyViewed);
-      setUpvotedContent(history.upvoted);
-    } catch (error) {
-      console.error('Failed to load user content:', error);
-    }
-  };
-
-  const loadUserStats = async () => {
-    try {
-      const userStats = await getUserStats();
-      setStats(userStats);
-    } catch (error) {
-      console.error('Failed to load user stats:', error);
+      setLoading(true);
+      const data = await getContents({ 
+        sort: 'most_upvoted', 
+        type: 'exercise', 
+        per_page: 3 
+      });
+      setPopularExercises(data.results);
+    } catch (err) {
+      console.error('Failed to fetch popular exercises:', err);
+      setError('Failed to load popular exercises. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVote = async (id: string, type: 'up' | 'down' | 'none') => {
-      try {
-        const updatedExercise = await voteContent(id, type);
-        setRecentContent(prevContents => 
-          prevContents.map(content => 
-            content.id === id ? updatedExercise : content
-          )
-        );
-        setUpvotedContent(prevContents => 
-          prevContents.map(content => 
-            content.id === id ? updatedExercise : content
-          )
-        );
-      } catch (err) {
-        console.error('Failed to vote:', err);
-      }
-    };
-  
+  const handleVote = async (id: string, voteType: 'up' | 'down' | 'none') => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-4xl font-bold mb-6">Welcome to EduShare</h1>
-        <p className="text-xl text-gray-600 mb-8">
-          Sign in to track your progress and access personalized content
-        </p>
-        <div className="flex justify-center gap-4">
-          <Link to="/login">
-            <Button size="lg">Sign In</Button>
-          </Link>
-          <Link to="/signup">
-            <Button variant="secondary" size="lg">Create Account</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
+    try {
+      const updatedExercise = await voteContent(id, voteType);
+      setPopularExercises(prevExercises =>
+        prevExercises.map(exercise =>
+          exercise.id === id ? updatedExercise : exercise
+        )
+      );
+    } catch (err) {
+      console.error('Failed to vote:', err);
+      setError('Failed to register your vote. Please try again.');
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+    }
+  };
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Welcome back, {user?.username}!</h1>
-        <Link to="/new">
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Content
-          </Button>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="pt-20 pb-32 px-4 bg-gradient-to-br from-gray-900 via-red-900 to-gray-900">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl font-bold text-white mb-6">
+            Nt3almou..!
+          </h1>
+          <p className="text-xl text-gray-300 mb-12">
+            Progressez en mathématiques avec des exercices adaptés à votre niveau
+          </p>
+          
+          <form onSubmit={handleSearch} className="relative max-w-2xl mx-auto mb-8">
+            <input
+              type="text"
+              placeholder="Rechercher un exercice..."
+              className="w-full px-6 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <Search className="w-5 h-5" />
+            </button>
+          </form>
 
-      {/* Progress Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <div className="flex items-center gap-2 text-blue-600 mb-2">
-            <BookOpen className="w-5 h-5" />
-            <h3 className="font-semibold">Exercises</h3>
-          </div>
-          <p className="text-2xl font-bold">{stats.exercisesCompleted}</p>
-          <p className="text-sm text-gray-600">completed</p>
+          <Link to="/exercises">
+            <Button className="bg-white hover:bg-gray-100 text-white px-8 py-3 rounded-full text-lg font-medium transition-all duration-300 transform hover:scale-105">
+              Commencer à pratiquer
+            </Button>
+          </Link>
         </div>
+      </section>
 
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <div className="flex items-center gap-2 text-green-600 mb-2">
-            <GraduationCap className="w-5 h-5" />
-            <h3 className="font-semibold">Lessons</h3>
-          </div>
-          <p className="text-2xl font-bold">{stats.lessonsCompleted}</p>
-          <p className="text-sm text-gray-600">completed</p>
+      {/* Popular Exercises */}
+      <section className="py-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
+            Exercices populaires
+          </h2>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4 mb-6">
+              {error}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {popularExercises.map(exercise => (
+                <ContentCard 
+                  key={exercise.id} 
+                  content={exercise} 
+                  onVote={handleVote}
+                />
+              ))}
+            </div>
+          )}
         </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <div className="flex items-center gap-2 text-yellow-600 mb-2">
-            <Trophy className="w-5 h-5" />
-            <h3 className="font-semibold">Level {stats.level}</h3>
+        
+      </section>
+      {/* Why Choose Us */}
+      <section className="py-16 px-4 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+            Pourquoi nous choisir
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white rounded-xl p-6 text-center hover:transform hover:scale-105 transition-all duration-300 shadow-lg">
+              <CheckCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Exercices vérifiés par des profs
+              </h3>
+              <p className="text-gray-600">
+                Contenu de qualité validé par des enseignants expérimentés
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center hover:transform hover:scale-105 transition-all duration-300 shadow-lg">
+              <TrendingUp className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Progression adaptée
+              </h3>
+              <p className="text-gray-600">
+                Des exercices qui suivent votre rythme d'apprentissage
+              </p>
+            </div>
+            <div className="bg-white rounded-xl p-6 text-center hover:transform hover:scale-105 transition-all duration-300 shadow-lg">
+              <Users className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Communauté active
+              </h3>
+              <p className="text-gray-600">
+                Échangez et progressez avec d'autres étudiants
+              </p>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div 
-              className="bg-yellow-600 h-2.5 rounded-full" 
-              style={{ width: `${stats.progress}%` }}
-            ></div>
-          </div>
-          <p className="text-sm text-gray-600">{stats.progress}% to next level</p>
         </div>
+      </section>
 
-        <div className="bg-white p-4 rounded-lg shadow-md">
-          <div className="flex items-center gap-2 text-purple-600 mb-2">
-            <Trophy className="w-5 h-5" />
-            <h3 className="font-semibold">Streak</h3>
+      {/* Statistics */}
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-4xl font-bold text-red-600 mb-2">1000+</div>
+              <div className="text-gray-600">Exercices disponibles</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-red-600 mb-2">5000+</div>
+              <div className="text-gray-600">Étudiants actifs</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-red-600 mb-2">3000+</div>
+              <div className="text-gray-600">Solutions détaillées</div>
+            </div>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-red-600 mb-2">85%</div>
+              <div className="text-gray-600">Taux de réussite</div>
+            </div>
           </div>
-          <p className="text-2xl font-bold">{stats.streak} days</p>
-          <p className="text-sm text-gray-600">Keep it up!</p>
         </div>
-      </div>
+      </section>
 
-      {/* Recently Viewed */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Recently Viewed</h2>
-        {recentContent.length > 0 ? (
-          <ContentList contents={recentContent} onVote={handleVote} />
-        ) : (
-          <div className="text-center py-8 bg-white rounded-lg shadow-md">
-            <p className="text-gray-600">No recently viewed content</p>
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 text-gray-400 py-12 px-4">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-white text-lg font-bold mb-4">Nt3almou...!</h3>
+            <p className="text-sm">
+              Votre plateforme d'apprentissage des mathématiques
+            </p>
           </div>
-        )}
-      </div>
-
-      {/* Upvoted Content */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Your Upvoted Content</h2>
-        {upvotedContent.length > 0 ? (
-          <ContentList contents={upvotedContent} onVote={handleVote} />
-        ) : (
-          <div className="text-center py-8 bg-white rounded-lg shadow-md">
-            <p className="text-gray-600">No upvoted content yet</p>
+          <div>
+            <h4 className="text-white font-medium mb-4">Navigation</h4>
+            <ul className="space-y-2">
+              <li><Link to="/" className="hover:text-white transition-colors">Accueil</Link></li>
+              <li><Link to="/exercises" className="hover:text-white transition-colors">Exercices</Link></li>
+              <li><Link to="/about" className="hover:text-white transition-colors">À propos</Link></li>
+              <li><Link to="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+            </ul>
           </div>
-        )}
-      </div>
+          <div>
+            <h4 className="text-white font-medium mb-4">Suivez-nous</h4>
+            <div className="flex space-x-4">
+              <a href="#" className="hover:text-white transition-colors"><Facebook className="w-5 h-5" /></a>
+              <a href="#" className="hover:text-white transition-colors"><Twitter className="w-5 h-5" /></a>
+              <a href="#" className="hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-white font-medium mb-4">Newsletter</h4>
+            <div className="flex">
+              <input
+                type="email"
+                placeholder="Votre email"
+                className="flex-1 px-4 py-2 bg-white/10 rounded-l-lg focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+              <button className="px-4 py-2 bg-red-600 text-white rounded-r-lg hover:bg-red-700 transition-colors">
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto mt-8 pt-8 border-t border-gray-800 text-center text-sm">
+          © 2025 ExercicesMaths.ma. Tous droits réservés
+        </div>
+      </footer>
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { SortDropdown } from '../components/SortDropdown';
 import { ContentList } from '../components/ContentList';
 import { useNavigate } from 'react-router-dom';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 20;
 
 export const ExerciseList = () => {
   const navigate = useNavigate();
