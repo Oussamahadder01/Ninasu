@@ -1,6 +1,7 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type SortOption = 'newest' | 'oldest' | 'most_upvoted' | 'most_commented';
-export type VoteType = 'up' | 'down' | 'none';
+export type VoteValue = 1 | -1 | 0;
+
 export type ClassLevel = 
   | 'tronc_commun'
   | 'bac_sm'
@@ -38,8 +39,10 @@ export interface Solution {
   updated_at: string;
   upvotes_count: number;
   downvotes_count: number;
-  user_vote: VoteType;
+  user_vote: VoteValue;
+  vote_count: number;
 }
+
 
 export interface Content {
   id: string;
@@ -54,8 +57,9 @@ export interface Content {
   updated_at: string;
   upvotes_count: number;
   downvotes_count: number;
-  user_vote: VoteType;
-  solution?:  Solution[];  
+  user_vote: VoteValue;
+  vote_count: number;
+  solution?:  Solution;  
   comments: Comment[];
   view_count: number;
 }
@@ -77,11 +81,11 @@ export interface Comment {
   content: string;
   author: User;
   created_at: string;
-  upvotes_count: number;
-  downvotes_count: number;
-  user_vote: VoteType;
-  parent?: string;
+  updated_at: string;
+  user_vote: VoteValue;
+  parent_id?: string;
   replies?: Comment[];
+  vote_count: number;
 }
 
 export interface UserProfile {

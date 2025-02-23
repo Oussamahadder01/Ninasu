@@ -1,11 +1,15 @@
-from rest_framework import viewsets, status, permissions, generics
+from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Count, Q, Prefetch
-from django.contrib.auth.models import User
-from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, ExerciseVote, CommentVote, SolutionVote
+from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, Vote
 from .serializers import ClassLevelSerializer, SubjectSerializer, ChapterSerializer, ExerciseSerializer, SolutionSerializer, CommentSerializer, ExerciseCreateSerializer
 from rest_framework.exceptions import PermissionDenied
+import logging
+from django.contrib.contenttypes.models import ContentType
+
+
+logger = logging.getLogger('django')
 
 class IsAuthenticatedOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
@@ -57,7 +61,33 @@ class ChapterViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = queryset.filter(filters)
         return queryset
 
-class ExerciseViewSet(viewsets.ModelViewSet):
+class VoteMixin:
+    @action(detail=True, methods=['post'])
+    def vote(self, request, pk=None):
+        obj = self.get_object()
+        vote_value = request.data.get('value')
+
+        if vote_value not in [Vote.UP, Vote.DOWN, Vote.UNVOTE]:
+            return Response({'error': 'Invalid vote value'}, status=status.HTTP_400_BAD_REQUEST)
+
+        vote, created = Vote.objects.get_or_create(
+            user=request.user,
+            content_type=ContentType.objects.get_for_model(obj),
+            object_id=obj.id,
+            defaults={'value': vote_value}
+        )
+        logger.info(f"test {vote_value}")
+
+        if not created:
+            if vote_value == Vote.UNVOTE:
+                vote.delete()
+            elif vote.value != vote_value:
+                vote.value = vote_value
+                vote.save()
+
+        return Response(self.get_serializer(obj).data)
+
+class ExerciseViewSet(VoteMixin, viewsets.ModelViewSet):
     queryset = Exercise.objects.all()
     permission_classes = [IsAuthenticatedOrReadOnly]
 
@@ -68,13 +98,20 @@ class ExerciseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Exercise.objects.all().select_related(
-            'author', 'solution','subject'
+            'author', 'solution', 'subject'
         ).prefetch_related(
             'chapters',
             'class_levels',
             'comments',
             'votes'
+        ).annotate(
+            vote_count_annotation=Count('votes', filter=Q(votes__value=Vote.UP)) - 
+                                  Count('votes', filter=Q(votes__value=Vote.DOWN))
         )
+
+        
+
+        logger.info(f"Filtered Exercises - Params: {self.request.query_params}")
 
         # Filtering
         class_levels = self.request.query_params.getlist('class_levels[]')
@@ -94,10 +131,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
         # Sorting
         sort_by = self.request.query_params.get('sort', '-created_at')
         if sort_by == 'votes':
-            queryset = queryset.annotate(
-                vote_count=Count('votes', filter=Q(votes__vote='up')) - 
-                          Count('votes', filter=Q(votes__vote='down'))
-            ).order_by('-vote_count')
+            queryset = queryset.order_by('-vote_count_annotation')
         else:
             queryset = queryset.order_by(sort_by)
 
@@ -106,6 +140,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        logger.info(f"POST request to create exercise with following data : {self.request.data}")
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -113,45 +148,58 @@ class ExerciseViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
-        print(request.data)
+        logger.info(f"PUT request to update exercise with following data : {self.request.data}")
         print(serializer.is_valid(raise_exception=True))
         self.perform_update(serializer)
         return Response(serializer.data)
 
     def perform_create(self, serializer):
         if not self.request.user.is_authenticated:
+            logger.warning("Unauthorized attempt to create an exercise.")
+
             raise PermissionDenied("You must be logged in to create an exercise.")
         serializer.save()
 
     def perform_update(self, serializer):
         if not self.request.user.is_authenticated:
+            logger.warning("Unauthorized attempt to update an exercise.")
+
             raise PermissionDenied("You must be logged in to create an exercise.")
         serializer.save()
 
     @action(detail=True, methods=['post'])
     def vote(self, request, pk=None):
         exercise = self.get_object()
-        vote_type = request.data.get('vote')
+        vote_value = request.data.get('value')
 
-        if vote_type not in ['up', 'down', None]:
+        logger.info(f"Vote request for Exercise ID {exercise.id} with vote value: {vote_value}")
+        logger.info(f"Request data: {request.data}")
+
+        if vote_value not in [Vote.UP, Vote.DOWN, Vote.UNVOTE]:
+            logger.error(f"Invalid vote value: {vote_value} for Exercise ID {exercise.id}")
             return Response(
-                {'error': 'Invalid vote type'}, 
+                {'error': 'Invalid vote value'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        vote, created = ExerciseVote.objects.get_or_create(
+        vote, created = Vote.objects.get_or_create(
             user=request.user,
-            exercise=exercise,
-            defaults={'vote': vote_type}
+            content_type=ContentType.objects.get_for_model(exercise),
+            object_id=exercise.id,
+            defaults={'value': vote_value}
         )
+        logger.info(f"Vote object created: {created}")
+        logger.info(f"Vote object value: {vote.value}")
+        logger.info(ContentType.objects.get_for_model(exercise))
 
         if not created:
-            if vote_type is None:
+            if vote_value == Vote.UNVOTE:
                 vote.delete()
-            elif vote.vote != vote_type:
-                vote.vote = vote_type
+            elif vote.value != vote_value:
+                vote.value = vote_value
                 vote.save()
-
+        # Refresh the exercise object to get updated vote count
+        exercise.refresh_from_db()
         return Response(self.get_serializer(exercise).data)
 
     @action(detail=True, methods=['post'])
@@ -161,10 +209,13 @@ class ExerciseViewSet(viewsets.ModelViewSet):
             data=request.data,
             context={'request': request}
         )
+        logger.info(f"Comment request for Exercise ID {exercise.id}")
+        logger.info(f"Request data: {request.data}")
         if serializer.is_valid():
             serializer.save(
                 exercise=exercise,
-                author=request.user
+                author=request.user,
+                parent_id=request.data.get('parent')  # Pass parent_id here
             )
             return Response(
                 serializer.data,
@@ -174,7 +225,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
-class SolutionViewSet(viewsets.ModelViewSet):
+class SolutionViewSet(VoteMixin, viewsets.ModelViewSet):
     queryset = Solution.objects.all()
     serializer_class = SolutionSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
@@ -182,57 +233,10 @@ class SolutionViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    @action(detail=True, methods=['post'])
-    def vote(self, request, pk=None):
-        solution = self.get_object()
-        vote_type = request.data.get('vote')
-
-        if vote_type not in ['up', 'down', None]:
-            return Response({'error': 'Invalid vote type'}, status=status.HTTP_400_BAD_REQUEST)
-
-        vote, created = SolutionVote.objects.get_or_create(
-            user=request.user,
-            solution=solution,
-            defaults={'vote': vote_type}
-        )
-
-        if not created:
-            if vote_type is None:
-                vote.delete()
-            elif vote.vote != vote_type:
-                vote.vote = vote_type
-                vote.save()
-
-        return Response(self.get_serializer(solution).data)
-
-class CommentViewSet(viewsets.ModelViewSet):
+class CommentViewSet(VoteMixin, viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    @action(detail=True, methods=['post'])
-    def vote(self, request, pk=None):
-        comment = self.get_object()
-        vote_type = request.data.get('vote')
-
-        if vote_type not in ['up', 'down', None]:
-            return Response({'error': 'Invalid vote type'}, status=status.HTTP_400_BAD_REQUEST)
-
-        vote, created = CommentVote.objects.get_or_create(
-            user=request.user,
-            comment=comment,
-            defaults={'vote': vote_type}
-        )
-
-        if not created:
-            if vote_type is None:
-                vote.delete()
-            elif vote.vote != vote_type:
-                vote.vote = vote_type
-                vote.save()
-
-        return Response(self.get_serializer(comment).data)
-    

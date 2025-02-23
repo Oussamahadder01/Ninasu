@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, CheckCircle, TrendingUp, Users, Send, Facebook, Twitter, Instagram } from 'lucide-react';
+import { Search, CheckCircle, TrendingUp, Users, Send, Facebook, Twitter, Instagram, ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ContentCard } from '@/components/ContentCard';
-import { getContents, voteContent } from '@/lib/api';
-import { Content } from '@/types';
+import { HomeContentCard } from '@/components/HomeContentCard';
+import { getContents, voteExercise } from '@/lib/api';
+import { Content, VoteValue } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function Home() {
@@ -36,14 +36,14 @@ export function Home() {
     }
   };
 
-  const handleVote = async (id: string, voteType: 'up' | 'down' | 'none') => {
+  const handleVote = async (id: string, value: VoteValue) => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
 
     try {
-      const updatedExercise = await voteContent(id, voteType);
+      const updatedExercise = await voteExercise(id, value);
       setPopularExercises(prevExercises =>
         prevExercises.map(exercise =>
           exercise.id === id ? updatedExercise : exercise
@@ -61,6 +61,7 @@ export function Home() {
       navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
     }
   };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
@@ -95,23 +96,35 @@ export function Home() {
       </section>
 
       {/* Popular Exercises */}
-      <section className="py-16 px-4">
+      <section className="py-16 px-4 bg-gradient-to-b from-white to-gray-100">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Exercices populaires
-          </h2>
+          <div className="flex flex-col md:flex-row justify-between items-center mb-12">
+            <div className="flex items-center mb-4 md:mb-0">
+              <Sparkles className="w-8 h-8 text-yellow-500 mr-3" />
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                Exercices populaires
+              </h2>
+            </div>
+            <Link 
+              to="/exercises" 
+              className="group flex items-center text-red-600 hover:text-red-700 transition-colors duration-300"
+            >
+              <span className="mr-2 font-semibold">Voir tous les exercices</span>
+              <ArrowRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" />
+            </Link>
+          </div>
           {loading ? (
             <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
             </div>
           ) : error ? (
             <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4 mb-6">
               {error}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {popularExercises.map(exercise => (
-                <ContentCard 
+                <HomeContentCard 
                   key={exercise.id} 
                   content={exercise} 
                   onVote={handleVote}
@@ -120,8 +133,8 @@ export function Home() {
             </div>
           )}
         </div>
-        
       </section>
+
       {/* Why Choose Us */}
       <section className="py-16 px-4 bg-gray-50">
         <div className="max-w-7xl mx-auto">

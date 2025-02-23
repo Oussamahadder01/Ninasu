@@ -1,37 +1,43 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Trash2, Edit, Tag, Eye, User, Clock } from 'lucide-react';
-import { Content, Difficulty } from '@/types';
+import { Content, Difficulty, VoteValue } from '@/types';
 import { Button } from './ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoteButtons } from './VoteButtons';
 import { InlineMath, BlockMath } from "react-katex";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
+import {
 
-  // Function to render math content
-  const renderMathContent = (text: string) => {
-    const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('$$') && part.endsWith('$$')) {
-        // Display math (centered)
-        return (
-          <div key={index} className="my-2 text-center">
-            <BlockMath math={part.slice(2, -2)} />
-          </div>
-        );
-      } else if (part.startsWith('$') && part.endsWith('$')) {
-        // Inline math (left-aligned)
-        return <InlineMath key={index} math={part.slice(1, -1)} />;
-      } else {
-        // Regular text
-        return <span key={index}>{part}</span>;
-      }
-    });
-  };
+  faChartBar,
+
+} from '@fortawesome/free-solid-svg-icons';
+
+// Function to render math content
+const renderMathContent = (text: string) => {
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      // Display math (centered)
+      return (
+        <div key={index} className="my-2 text-center">
+          <BlockMath math={part.slice(2, -2)} />
+        </div>
+      );
+    } else if (part.startsWith('$') && part.endsWith('$')) {
+      // Inline math (left-aligned)
+      return <InlineMath key={index} math={part.slice(1, -1)} />;
+    } else {
+      // Regular text
+      return <span key={index}>{part}</span>;
+    }
+  });
+};
 
 interface ContentCardProps {
   content: Content;
-  onVote: (id: string, type: 'up' | 'down' | 'none') => void;
+  onVote: (id: string, value: VoteValue) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 }
@@ -48,7 +54,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
   const handleCardClick = () => navigate(`/exercises/${content.id}`);
 
-  const getDifficultyColor = (difficulty: string): string => {
+  const getDifficultyColor = (difficulty: Difficulty): string => {
     switch (difficulty) {
       case 'easy':
         return 'bg-green-100 text-green-800 border-green-200';
@@ -63,42 +69,44 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
   return (
     <div
-      className="content-card flex bg-white rounded-lg shadow hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden group cursor-pointer"
+      className="content-card flex bg-white rounded-3xl shadow hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden group cursor-pointer"
       onClick={handleCardClick}
     >
       {/* Vote Buttons */}
-      <div className="flex-shrink-0 p-4 bg-gray-100 flex items-center justify-center">
-        <VoteButtons
-          initialVotes={(content.upvotes_count || 0) - (content.downvotes_count || 0)}
-          onVote={(type) => onVote(content.id, type)}
-          vertical
-          userVote={content.user_vote}
-        />
-      </div>
+
 
       {/* Content */}
-      <div className="flex-1 p-5">
-        {/* Header: Subject and Difficulty */}
-        <div className="flex items-center justify-between mb-1">
-          <span className="bg-gradient-to-l from-red-200 to-gray-400 text-black px-2 py-1 rounded-bl-2xl font-medium">{content.subject.name}</span>
-          <span className={`px-4 py-0.2 rounded-full text-s font-semibold border ${getDifficultyColor(content.difficulty)}`}>
-            {content.difficulty}
-          </span>
-        </div>
+<div className="flex-1 p-4">
+  <div className="flex items-center justify-between">
+    {/* Subject Badge */}
+    <span className="bg-gradient-to-r from-red-800 to-red-600 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-sm">
+      {content.subject.name}
+    </span>
+
+    {/* Difficulty and Chart Icon */}
+    <div className="flex items-center gap-2"> {/* Nested flex container */}
+    <FontAwesomeIcon icon={faChartBar} className={`${getDifficultyColor(content.difficulty)}`} />
+
+      <label className={`px-7 py-0.5 rounded-full text-sm font-semibold border ${getDifficultyColor(content.difficulty)}`}>
+        {content.difficulty}
+      </label>
+    </div>
+  </div>
 
         {/* Title */}
-        <h2 className="text-lg font-bold text-gray-800 hover:text-red-500 mb-3 line-clamp-2">
+        <h2 className="text-xl font-bold text-gray-800 hover:text-red-500 mb-3 line-clamp-2 p-2">
           {content.title}
         </h2>
 
         {/* Content Preview */}
-        <div className="prose max-w-none text-l text-gray-700 mb-2">
+        <div className="prose max-w-none text-l text-gray-900 mb-2">
         {renderMathContent(content.content)}
 
         </div>
 
 
         {/* Tags */}
+        
         {content.chapters && content.chapters.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {content.chapters.map((tag) => (
@@ -116,7 +124,14 @@ export const ContentCard: React.FC<ContentCardProps> = ({
         {/* Footer: Author, Date, Views, Comments */}
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center gap-4">
+          <VoteButtons
+          initialVotes={content.vote_count}
+          onVote={(value) => onVote(content.id, value)}
+          vertical = {false}
+          userVote={content.user_vote}
+        />
             <span className="flex items-center gap-1">
+              
               <User className="w-4 h-4" />
               {content.author.username}
             </span>
@@ -126,7 +141,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
             </span>
             <span className="flex items-center gap-1">
               <Eye className="w-4 h-4" />
-              {content.view_count} views
+              {content.view_count} 
             </span>
             <button
               onClick={(e) => {
@@ -136,7 +151,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
               className="flex items-center gap-1 hover:text-red-500"
             >
               <MessageSquare className="w-4 h-4" />
-              {(content.comments || []).length} comments
+              {(content.comments || []).length} 
             </button>
           </div>
 

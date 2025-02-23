@@ -1,10 +1,10 @@
 import React from 'react';
-import { Content } from '@/types';
+import { Content, VoteValue } from '@/types';
 import { ContentCard } from './ContentCard';
 
 interface ContentListProps {
   contents: Content[];
-  onVote: (id: string, type: 'up' | 'down' | 'none') => void;
+  onVote: (id: string, type: VoteValue) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 }

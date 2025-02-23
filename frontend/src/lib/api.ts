@@ -18,6 +18,31 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+type VoteValue = 1 | -1 | 0;  // Matches Vote.UP, Vote.DOWN, Vote.UNVOTE
+type VoteTarget = 'exercise' | 'solution' | 'comment';
+
+const voteContent = async (contentId: string, value: VoteValue, target: VoteTarget) => {
+  const endpoints = {
+    exercise: `/exercises/${contentId}/vote/`,
+    solution: `/solutions/${contentId}/vote/`,
+    comment: `/comments/${contentId}/vote/`,
+  };
+
+  const response = await api.post(endpoints[target], { value });
+  return response.data;
+};
+
+export const voteExercise = async (id: string, value: VoteValue) => {
+  return voteContent(id, value, 'exercise');
+};
+
+export const voteSolution = async (id: string, value: VoteValue) => {
+  return voteContent(id, value, 'solution');
+};
+
+export const voteComment = async (id: string, value: VoteValue) => {
+  return voteContent(id, value, 'comment');
+};
 
 // Auth API
 export const login = async (identifier: string, password: string) => {
@@ -75,7 +100,7 @@ export const createContent = async (data: {
   subject: string;
   chapters: string[];
   difficulty: string;
-  exercise_solution?: string;
+  solution_content?: string;
 }) => {
   const response = await api.post('/exercises/', data);
   return response.data;
@@ -103,11 +128,6 @@ export const deleteContent = async (id: string) => {
   await api.delete(`/exercises/${id}/`);
 };
 
-export const voteContent = async (id: string, type: 'up' | 'down' | 'none', target: 'exercise' | 'solution' = 'exercise') => {
-  const response = await api.post(`/exercises/${id}/vote/`, { type, target });
-  return response.data;
-};
-
 // Solution API
 export const getSolution = async (id: string) => {
   const response = await api.get(`/solutions/${id}/`);
@@ -123,10 +143,7 @@ export const deleteSolution = async (id: string) => {
   await api.delete(`/solutions/${id}/`);
 };
 
-export const voteSolution = async (id: string, type: 'up' | 'down' | 'none') => {
-  const response = await api.post(`/solutions/${id}/vote/`, { type });
-  return response.data;
-};
+
 
 export const addSolution = async (exerciseId: string, data: { content: string }): Promise<Solution> => {
   const response = await api.post(`/exercises/${exerciseId}/solution/`, data);
@@ -134,10 +151,6 @@ export const addSolution = async (exerciseId: string, data: { content: string })
 };
 
 // Comment API
-export const voteComment = async (commentId: string, voteType: 'up' | 'down' | 'none') => {
-  const response = await api.post(`/comments/${commentId}/vote/`, { type: voteType });
-  return response.data;
-};
 
 export const addComment = async (exerciseId: string, content: string, parentId?: string) => {
   const response = await api.post(`/exercises/${exerciseId}/comment/`, { 
@@ -184,8 +197,6 @@ export const getChapters = async (subjectIds?: string |string[], classLevelIds?:
     ...(subjectIds && { subject: subjectIds }),
     ...(classLevelIds && { class_level:  classLevelIds }),
   };
-
-  
   const response = await api.get('/chapters/', { params });
   return response.data.results || [];
 };

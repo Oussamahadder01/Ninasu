@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, ExerciseVote, CommentVote, SolutionVote
+from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment
 
 @admin.register(ClassLevel)
 class ClassLevelAdmin(admin.ModelAdmin):
@@ -45,23 +45,3 @@ class CommentAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
     readonly_fields = ('created_at',)
 
-@admin.register(ExerciseVote)
-class ExerciseVoteAdmin(admin.ModelAdmin):
-    list_display = ('exercise', 'user', 'vote', 'created_at')
-    list_filter = ('vote',)
-    search_fields = ('exercise__title', 'user__username')
-    date_hierarchy = 'created_at'
-
-@admin.register(CommentVote)
-class CommentVoteAdmin(admin.ModelAdmin):
-    list_display = ('comment', 'user', 'vote', 'created_at')
-    list_filter = ('vote',)
-    search_fields = ('comment__content', 'user__username')
-    date_hierarchy = 'created_at'
-
-@admin.register(SolutionVote)
-class SolutionVoteAdmin(admin.ModelAdmin):
-    list_display = ('solution', 'user', 'vote', 'created_at')
-    list_filter = ('vote',)
-    search_fields = ('solution__exercise__title', 'user__username')
-    date_hierarchy = 'created_at'

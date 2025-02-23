@@ -1,6 +1,9 @@
 from rest_framework import serializers
-from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, ExerciseVote, CommentVote, SolutionVote
+from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, Vote
 from django.contrib.auth.models import User
+import logging 
+
+logger = logging.getLogger('django')
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -27,48 +30,49 @@ class ChapterSerializer(serializers.ModelSerializer):
         model = Chapter
         fields = ['id', 'name', 'order', 'subject', 'class_levels']
 
+class VoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = ['id', 'value', 'created_at', 'updated_at']
+
 class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     replies = serializers.SerializerMethodField()
-    vote_count = serializers.SerializerMethodField()
+    vote_count = serializers.IntegerField(read_only=True)
     user_vote = serializers.SerializerMethodField()
-
+    parent_id = serializers.IntegerField(required=False, allow_null=True)
     class Meta:
         model = Comment
-        fields = ['id', 'content', 'author', 'created_at', 'replies', 'vote_count', 'user_vote']
+        fields = ['id', 'content', 'author', 'created_at', 'replies', 'vote_count', 'user_vote','parent_id']
 
     def get_replies(self, obj):
         if obj.replies.exists():
             return CommentSerializer(obj.replies.all(), many=True, context=self.context).data
         return []
 
-    def get_vote_count(self, obj):
-        return obj.votes.filter(vote='up').count() - obj.votes.filter(vote='down').count()
-
     def get_user_vote(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
             vote = obj.votes.filter(user=user).first()
-            return vote.vote if vote else None
+            logger.info(vote)
+            return vote.value if vote else None
         return None
 
 class SolutionSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
-    vote_count = serializers.SerializerMethodField()
+    vote_count = serializers.IntegerField(read_only=True)
     user_vote = serializers.SerializerMethodField()
 
     class Meta:
         model = Solution
         fields = ['id', 'content', 'author', 'created_at', 'updated_at', 'vote_count', 'user_vote']
 
-    def get_vote_count(self, obj):
-        return obj.votes.filter(vote='up').count() - obj.votes.filter(vote='down').count()
-
     def get_user_vote(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
             vote = obj.votes.filter(user=user).first()
-            return vote.vote if vote else None
+
+            return vote.value if vote else None
         return None
 
 class ExerciseSerializer(serializers.ModelSerializer):
@@ -76,7 +80,7 @@ class ExerciseSerializer(serializers.ModelSerializer):
     chapters = ChapterSerializer(many=True, read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     solution = SolutionSerializer(read_only=True)
-    vote_count = serializers.SerializerMethodField()
+    vote_count = serializers.IntegerField(read_only=True)
     user_vote = serializers.SerializerMethodField()
     difficulty = serializers.CharField(source='get_difficulty_display')
     view_count = serializers.IntegerField(read_only=True)
@@ -85,16 +89,13 @@ class ExerciseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exercise
-        fields = ['id', 'title', 'content', 'difficulty', 'chapters', 'author', 'created_at', 'updated_at', 'view_count', 'comments', 'solution', 'vote_count', 'user_vote','difficulty','class_levels','subject']
-
-    def get_vote_count(self, obj):
-        return obj.votes.filter(vote='up').count() - obj.votes.filter(vote='down').count()
+        fields = ['id', 'title', 'content', 'difficulty', 'chapters', 'author', 'created_at', 'updated_at', 'view_count', 'comments', 'solution', 'vote_count', 'user_vote', 'difficulty', 'class_levels', 'subject']
 
     def get_user_vote(self, obj):
         user = self.context['request'].user
         if user.is_authenticated:
             vote = obj.votes.filter(user=user).first()
-            return vote.vote if vote else None
+            return vote.value if vote else None
         return None
 
     def update(self, instance, validated_data):

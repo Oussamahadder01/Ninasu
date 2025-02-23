@@ -3,6 +3,19 @@ import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
 import { ClassLevelModel, SubjectModel, ChapterModel, Difficulty } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import DualPaneEditor from './DualPaneEditor';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faHeading,
+  faLayerGroup,
+  faBook,
+  faBookOpen,
+  faChartBar,
+  faEdit,
+  faLightbulb,
+  faArrowRight,
+  faArrowLeft,
+} from '@fortawesome/free-solid-svg-icons';
+import ContentPreview from './ContentPreview';
 
 interface ContentEditorProps {
   onSubmit: (data: any) => void;
@@ -34,21 +47,23 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues =
   const [selectedSubject, setSelectedSubject] = useState(initialValues.subject || '');
   const [selectedChapters, setSelectedChapters] = useState<string[]>(initialValues.chapters || []);
   const [difficulty, setDifficulty] = useState<Difficulty>(initialValues.difficulty || 'easy');
+  const [solution, setSolution] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [solution, setSolution] = useState<string>('');
+  const [currentStep, setCurrentStep] = useState(1); // Step management
 
+  // Load class levels, subjects, and chapters
   useEffect(() => {
     loadClassLevels();
   }, []);
 
   useEffect(() => {
-    if (selectedClassLevels.length) loadSubjects();
+    loadSubjects();
   }, [selectedClassLevels]);
 
   useEffect(() => {
-    if (selectedSubject && selectedClassLevels.length) loadChapters();
-  }, [selectedClassLevels, selectedSubject]);
+    loadChapters();
+  }, [selectedSubject, selectedClassLevels]);
 
   const loadClassLevels = async () => {
     try {
@@ -115,7 +130,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues =
         subject: selectedSubject,
         difficulty,
         chapters: selectedChapters,
-        solution_content: solution
+        solution_content: solution,
       });
       console.log('Content submitted successfully');
     } catch (error) {
@@ -130,120 +145,307 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ onSubmit, initialValues =
     navigate(-1);
   };
 
+  const nextStep = () => {
+    if (currentStep === 1 && (!title || !selectedClassLevels.length || !selectedSubject || !selectedChapters.length)) {
+      setError('Please fill out all fields before proceeding.');
+      return;
+    }
+    if (currentStep === 2 && !content.trim()) {
+      setError('Content is required before proceeding.');
+      return;
+    }
+    setError(null);
+    setCurrentStep(prev => prev + 1);
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => prev - 1);
+  };
 
   return (
-    <div className="content-editor p-6 bg-white rounded-lg shadow-md">
+    <div className="max-w-full mx-auto bg-gradient-to-r from-gray-900 to-red-900 py-10 backdrop-blur-lg rounded-xl p-8 space-y-10">
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      <div className="mb-6">
-        <label htmlFor="title" className="block text-lg font-medium mb-2">Title</label>
-        <input
-          type="text"
-          id="title"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Enter the title here..."
-        />
-      </div>
+      {/* Step 1: Title, Categories, and Difficulty */}
+      <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((stepNum) => (
+              <div
+                key={stepNum}
+                className={`${currentStep === stepNum ? "bg-black/20 border-gray-500/30" : "bg-gray-800/50 border-gray-700"} text-lg border rounded-lg p-4 relative`}
+              >
+                <div
+                  className={`absolute -top-2 -left-2 w-6 h-6 rounded-full ${currentStep === stepNum ? "bg-red-800" : "bg-gray-700"} text-lg text-white flex items-center justify-center text-sm`}
+                >
+                  {stepNum}
+                </div>
+                <h3
+                  className={`${currentStep === stepNum ? "text-white" : "text-gray-400"} font-medium`}
+                >
+                  {
+                    ["Informations", "Contenu", "Métadonnées", "Publication"][
+                      stepNum - 1
+                    ]
+                  }
+                </h3>
+                <p className="text-base text-gray-500">
+                  {
+                    [
+                      "Détails de base",
+                      "Exercice & Solution",
+                      "Tags & Catégories",
+                      "Révision finale",
+                    ][stepNum - 1]
+                  }
+                </p>
+              </div>
+            ))}
+          </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Class Levels</h3>
-        <div className="flex flex-wrap gap-2">
-          {classLevels.map(level => (
-            <button
-              key={level.id}
-              onClick={() => toggleSelection(level.id, selectedClassLevels, setSelectedClassLevels)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedClassLevels.includes(level.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {level.name}
-            </button>
-          ))}
+          
+      {currentStep === 1 && (
+        <div className="grid grid-cols-3 gap-8">
+          <div className="col-span-2 space-y-6">
+
+          <div>
+          <div className="h-full gap-4 bg-black/20 rounded-lg p-4">
+
+            <label className="block text-white text-lg font-medium mb-2">
+              <FontAwesomeIcon icon={faHeading} className="mr-2" />
+              Title
+            </label>
+            <input
+              type="text"
+              className="w-full px-4 py-3 text-lg bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40 transition-all"
+              placeholder="Exercise title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+            />
+          </div>
+          </div>
+
+          
+
+
+          
+          {/* Class Levels and Subjects in one row */}
+      <div className="flex space-x-4">
+        {/* Class Levels Section */}
+        <div className="flex-1">
+          <div className="h-full gap-4 bg-black/20 rounded-lg p-4">
+            <label className="block text-white text-lg font-medium mb-2">
+              <FontAwesomeIcon icon={faLayerGroup} className="mr-2" />
+              Class Levels
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {classLevels.map((level) => (
+                <button
+                  key={level.id}
+                  className={`px-3 py-1 text-base rounded-full border transition-all ${
+                    selectedClassLevels.includes(level.id)
+                      ? "bg-white text-base text-gray-900 border-white"
+                      : "bg-white/10 text-white text-base border-white/20 hover:bg-white/20"
+                  }`}
+                  onClick={() => toggleSelection(level.id, selectedClassLevels, setSelectedClassLevels)}
+                >
+                  {level.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Subjects Section */}
+        <div className="flex-1">
+          <div className="w-full gap-4 bg-black/20 rounded-lg p-4">
+          
+            <label className="block text-white text-lg font-medium mb-2">
+              
+              <FontAwesomeIcon icon={faBook} className="mr-2" />
+              Subject
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {subjects.map((subject) => (
+                <button
+                  key={subject.id}
+                  className={`px-3 py-1 text-base rounded-full border transition-all ${
+                    selectedSubject === subject.id
+                      ? "bg-white text-gray-900 border-white"
+                      : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                  }`}
+                  onClick={() => handleSubjectSelection(subject.id)}
+                >
+                  {subject.name}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Subject</h3>
-        <div className="flex flex-wrap gap-2">
-          {subjects.map(subject => (
-            <button
-              key={subject.id}
-              onClick={() => handleSubjectSelection(subject.id)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedSubject === subject.id ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {subject.name}
-            </button>
-          ))}
+      {/* Chapters Section (below Class Levels and Subjects) */}
+      <div>
+        <div className="w-full gap-4 bg-black/20 rounded-lg p-4">
+          <label className="block text-white text-lg font-medium mb-2">
+            <FontAwesomeIcon icon={faBookOpen} className="mr-2" />
+            Chapters
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {chapters.map((chapter) => (
+              <button
+                key={chapter.id}
+                className={`px-3 py-1 text-base rounded-full border transition-all ${
+                  selectedChapters.includes(chapter.id)
+                    ? "bg-white text-gray-900 border-white"
+                    : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                }`}
+                onClick={() => toggleSelection(chapter.id, selectedChapters, setSelectedChapters)}
+              >
+                {chapter.name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+    </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Chapters</h3>
-        <div className="flex flex-wrap gap-2">
-          {chapters.map(chapter => (
-            <button
-              key={chapter.id}
-              onClick={() => toggleSelection(chapter.id, selectedChapters, setSelectedChapters)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                selectedChapters.includes(chapter.id) ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
-              {chapter.name}
-            </button>
-          ))}
+    {/* Difficulty Section */}
+    <div>
+      <div className="w-full gap-4 bg-black/20 rounded-lg p-4">
+        <div className="space-y-6">
+          <label className="block text-white text-lg font-medium mb-2">
+            <FontAwesomeIcon icon={faChartBar} className="mr-2" />
+            Difficulty
+          </label>
+          <div className="space-y-2">
+            {['easy', 'medium', 'hard'].map((level) => (
+              <button
+                key={level}
+                className={`w-full py-2 px-4 rounded-lg transition-all text-left ${
+                  difficulty === level
+                    ? level === 'easy'
+                      ? 'bg-green-600/70 text-green-200 text-base border border-green-600/70 hover:bg-green-600/70'
+                      : level === 'medium'
+                      ? 'bg-yellow-600/70 text-yellow-200 text-base border border-yellow-600/50 hover:bg-yellow-600/50'
+                      : 'bg-red-600/70 text-red-200 border text-base border-red-600/50 hover:bg-red-600/50'
+                    : level === 'easy'
+                    ? 'bg-green-500/10 text-green-400 border  text-base border-green-500/20 hover:bg-green-500/20'
+                    : level === 'medium'
+                    ? 'bg-yellow-500/10 text-yellow-400 text-base border border-yellow-500/20 hover:bg-yellow-500/20'
+                    : 'bg-red-500/10 text-red-400 border text-base border-red-500/20 hover:bg-red-500/20'
+                }`}
+                onClick={() => setDifficulty(level as Difficulty)}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+    </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Difficulty</h3>
-        <div className="flex flex-wrap gap-2">
-          {['easy', 'medium', 'hard'].map(level => (
+    {/* Next Button */}
+    <div className="flex justify-end col-span-3">
+      <button
+        onClick={nextStep}
+        className="px-6 py-3 bg-gradient-to-r from-gray-500 to-red-700 text-white rounded-lg hover:from-red-600 hover:to-red-800 transition-colors"
+      >
+        Next <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
+      </button>
+    </div>
+  </div>
+)}
+          
+
+      {/* Step 2: Content Writing */}
+      {currentStep === 2 && (
+        <div className="form-section space-y-6">
+
+          <div>
+            <label className="block text-lg text-white font-medium mb-2">
+              <FontAwesomeIcon icon={faEdit} className="mr-2" />
+              Content (LaTeX supported)
+            </label>
+            <DualPaneEditor content={content} setContent={setContent} />
+          </div>
+
+          <div className="flex justify-between">
             <button
-              key={level}
-              onClick={() => setDifficulty(level as Difficulty)}
-              className={`px-3 py-1 rounded-full text-sm ${
-                difficulty === level ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              onClick={prevStep}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
             >
-              {level}
+              <FontAwesomeIcon icon={faArrowLeft} className="mr-2" /> Back
             </button>
-          ))}
+            <button
+              onClick={nextStep}
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg hover:from-red-600 hover:to-red-800 transition-colors"
+            >
+              Next <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Content (LaTeX)</h3>
-        {/* DualPaneEditor for LaTeX input and live preview */}
-        <DualPaneEditor content={content} setContent={setContent} />
-      </div>
+      {/* Step 3: Solution Writing (Optional) */}
+      {currentStep === 3 && (
+        <div className="form-section space-y-6">
 
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Solution (LaTeX)</h3>
-        {/* DualPaneEditor for LaTeX input and live preview */}
-        <DualPaneEditor content={solution} setContent={setSolution} />
-      </div>
+          <div>
+            <label className="block text-lg text-white font-medium mb-2">
+              <FontAwesomeIcon icon={faLightbulb} className="mr-2" />
+              Solution (LaTeX supported)
+            </label>
+            <DualPaneEditor content={solution} setContent={setSolution} />
+          </div>
 
-      <div className="mt-6 flex justify-end gap-2">
-        <button
-          onClick={handleCancel}
-          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          className={`px-6 py-2 bg-blue-500 text-white rounded-lg ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'
-          }`}
-          disabled={isLoading}
-        >
-          {isLoading ? 'Submitting...' : 'Submit'}
-        </button>
-      </div>
+          <div className="flex justify-between">
+            <button
+              onClick={prevStep}
+              className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <FontAwesomeIcon icon={faArrowLeft} className="mr-2" /> Back
+            </button>
+            <button
+              onClick={nextStep}
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg hover:from-red-600 hover:to-red-800 transition-colors"
+            >
+              Next <FontAwesomeIcon icon={faArrowRight} className="ml-2" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Final Step: Review and Submit */}
+      {currentStep === 4 && (
+  <div className="form-section space-y-6">
+    <ContentPreview
+      title={title}
+      selectedClassLevels={classLevels.filter(level => selectedClassLevels.includes(level.id))}
+      selectedSubject={subjects.find(subject => subject.id === selectedSubject) || {} as SubjectModel}
+      selectedChapters={chapters.filter(chapter => selectedChapters.includes(chapter.id))}
+      difficulty={difficulty}
+      content={content}
+      solution={solution}
+    />
+
+    <div className="flex justify-between">
+      <button
+        onClick={prevStep}
+        className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+      >
+        <FontAwesomeIcon icon={faArrowLeft} className="mr-2" /> Retour
+      </button>
+      <button
+        onClick={handleSubmit}
+        className={`px-6 py-3 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-lg ${
+          isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:from-red-600 hover:to-red-800'
+        } transition-colors`}
+        disabled={isLoading}
+      >
+        {isLoading ? 'Submitting...' : 'Publier'}
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 };

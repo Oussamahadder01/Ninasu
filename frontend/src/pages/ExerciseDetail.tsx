@@ -1,43 +1,40 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Tag, ChevronDown, Lightbulb, Award, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Tag, ChevronDown, Lightbulb, Award, MessageSquare, GitPullRequest, Activity, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getContentById, voteContent, addComment, markContentViewed, deleteContent, voteComment, updateComment, deleteComment, deleteSolution, voteSolution, addSolution } from '@/lib/api';
-import { Content, Comment, Solution } from '@/types';
+import { getContentById, voteExercise, addComment, markContentViewed, deleteContent, voteComment, updateComment, deleteComment, deleteSolution, voteSolution, addSolution } from '@/lib/api';
+import { Content, Comment, VoteValue } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { renderLatexContent } from '@/lib/utils';
 import { VoteButtons } from '@/components/VoteButtons';
-import { CommentSection } from '@/components/CommentSection';
-import MDEditor from '@uiw/react-md-editor';
-import katex from 'katex';
-
+import DualPaneEditor from '@/components/DualPaneEditor';
 import { InlineMath, BlockMath } from "react-katex";
+import { CommentSection } from '@/components/CommentSection';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
+import {
+  faBook,
+  faLayerGroup,
+  faChartBar,
 
-  // Function to render math content
-  const renderMathContent = (text: string) => {
-    const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('$$') && part.endsWith('$$')) {
-        // Display math (centered)
-        return (
-          <div key={index} className="my-2 text-center">
-            <BlockMath math={part.slice(2, -2)} />
-          </div>
-        );
-      } else if (part.startsWith('$') && part.endsWith('$')) {
-        // Inline math (left-aligned)
-        return <InlineMath key={index} math={part.slice(1, -1)} />;
-      } else {
-        // Regular text
-        return <span key={index}>{part}</span>;
-      }
-    });
-  };
-interface CodeProps {
-  inline?: boolean;
-  children?: React.ReactNode;
-}
+} from '@fortawesome/free-solid-svg-icons';
+
+const renderMathContent = (text: string) => {
+  const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('$$') && part.endsWith('$$')) {
+      return (
+        <div key={index} className="my-2 text-center">
+          <BlockMath math={part.slice(2, -2)} />
+        </div>
+      );
+    } else if (part.startsWith('$') && part.endsWith('$')) {
+      return <InlineMath key={index} math={part.slice(1, -1)} />;
+    } else {
+      return <span key={index}>{part}</span>;
+    }
+  });
+};
 
 export function ExerciseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +46,7 @@ export function ExerciseDetail() {
   const [showSolution, setShowSolution] = useState(false);
   const [solutionVisible, setSolutionVisible] = useState(false);
   const [solution, setSolution] = useState('');
+  const [activeSection, setActiveSection] = useState<'exercise' | 'discussions' | 'proposals' | 'community' | 'activity'>('exercise');
 
   useEffect(() => {
     if (id) {
@@ -56,28 +54,6 @@ export function ExerciseDetail() {
       markContentViewed(id).catch(console.error);
     }
   }, [id]);
-  const renderLatexInPreview = ({ inline, children }: CodeProps) => {
-    if (!children) return null;
-    const text = Array.isArray(children) ? children[0] : children;
-    if (typeof text !== 'string') return null;
-
-    if (inline) {
-      if (text.startsWith('$') && text.endsWith('$')) {
-        const math = text.slice(1, -1);
-        return <span dangerouslySetInnerHTML={{ __html: katex.renderToString(math) }} />;
-      }
-    } else {
-      if (text.startsWith('$$') && text.endsWith('$$')) {
-        const math = text.slice(2, -2);
-        return (
-          <div className="text-center my-2">
-            <span dangerouslySetInnerHTML={{ __html: katex.renderToString(math, { displayMode: true }) }} />
-          </div>
-        );
-      }
-    }
-    return inline ? <code>{text}</code> : <pre><code>{text}</code></pre>;
-  };
 
   const getDifficultyColor = (difficulty: string): string => {
     switch (difficulty) {
@@ -91,6 +67,7 @@ export function ExerciseDetail() {
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
   const loadExercise = async (exerciseId: string) => {
     try {
       setLoading(true);
@@ -105,24 +82,24 @@ export function ExerciseDetail() {
     }
   };
 
-  const handleVote = async (type: 'up' | 'down' | 'none', target: 'exercise' | 'solution' = 'exercise') => {
+  const handleVote = async (value: VoteValue, target: 'exercise' | 'solution' = 'exercise') => {
     if (!isAuthenticated || !id) {
       navigate('/login');
       return;
     }
 
     try {
-      if (target === 'solution' && firstSolution) {
-        const updatedSolution = await voteSolution(firstSolution.id, type);
+      if (target === 'solution' && exercise?.solution) {
+        const updatedSolution = await voteSolution(exercise.solution.id, value);
         setExercise(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            solutions: prev.solution ? [updatedSolution, ...prev.solution.slice(1)] : [updatedSolution]
+            solution: updatedSolution
           };
         });
       } else {
-        const updatedExercise = await voteContent(id, type);
+        const updatedExercise = await voteExercise(id, value);
         setExercise(updatedExercise);
       }
     } catch (err) {
@@ -175,14 +152,14 @@ export function ExerciseDetail() {
     }
   };
 
-  const handleVoteComment = async (commentId: string, voteType: 'up' | 'down' | 'none') => {
+  const handleVoteComment = async (commentId: string, value: VoteValue) => {
     if (!isAuthenticated || !exercise) {
       navigate('/login');
       return;
     }
 
     try {
-      const updatedComment = await voteComment(commentId, voteType);
+      const updatedComment = await voteComment(commentId, value);
       
       const updateCommentInTree = (comments: Comment[]): Comment[] => {
         return comments.map(comment => {
@@ -308,11 +285,30 @@ export function ExerciseDetail() {
         if (!prev) return prev;
         return {
           ...prev,
-          solutions: prev.solution ? [...prev.solution, newSolution] : [newSolution]
+          solution: newSolution
         };
       });
     } catch (err) {
       console.error('Failed to add solution:', err);
+    }
+  };
+
+  const handleEditSolution = () => {
+    if (exercise?.solution) {
+      navigate(`/solutions/${exercise.solution.id}/edit`);
+    }
+  };
+
+  const handleDeleteSolution = async () => {
+    if (!exercise?.solution || !window.confirm('Are you sure you want to delete this solution?')) {
+      return;
+    }
+
+    try {
+      await deleteSolution(exercise.solution.id);
+      loadExercise(exercise.id);
+    } catch (err) {
+      console.error('Failed to delete solution:', err);
     }
   };
 
@@ -335,147 +331,212 @@ export function ExerciseDetail() {
   }
 
   const isAuthor = user?.id === exercise.author.id;
-  const firstSolution = exercise.solution;
-  const hasSolution = firstSolution;
-  const canEditSolution = firstSolution && user?.id === firstSolution.author.id;
-
-  const handleEditSolution = () => {
-    if (firstSolution) {
-      navigate(`/solutions/${firstSolution.id}/edit`);
-    }
-  };
-
-  const handleDeleteSolution = async () => {
-    if (!firstSolution || !window.confirm('Are you sure you want to delete this solution?')) {
-      return;
-    }
-
-    try {
-      await deleteSolution(firstSolution.id);
-      loadExercise(exercise.id);
-    } catch (err) {
-      console.error('Failed to delete solution:', err);
-    }
-  };
+  const hasSolution = !!exercise.solution;
+  const canEditSolution = exercise.solution && user?.id === exercise.solution.author.id;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
-            <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
-      <h2 className="text-2xl font-bold mb-2">{exercise.title}</h2>
+    <div className="max-w-7xl bg-white mx-auto px-4 py-8">
+
+      {/* Navigation Tabs */}
+      <div className="flex items-start justify-between">
+      <div className="flex-1">
+      <div className="flex items-center gap-3 mb-3">
+        
+      <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
+      <h1 className="text-2xl font-bold mb-2">{exercise.title}</h1>
+      <FontAwesomeIcon icon={faChartBar} className={` ${getDifficultyColor(exercise.difficulty)}`} />
+      <label className={`px-7 py-0.5 rounded-full text-sm font-semibold border ${getDifficultyColor(exercise.difficulty)}`}>
+
+              {exercise.difficulty}
+            </label>
+      
+      </div>
+      </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-4">
-        {/* Content header */}
-        
-        <div className="flex items-center justify-between mb-4">
-            {/* Left: Class Levels & Subject */}
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>{exercise.class_levels.map(level => level.name).join(" | ")}</span>
-              <span>•</span>
-              <span>{exercise.subject?.name}</span>
-            </div>
-            
-            {/* Right: Difficulty */}
-            <span className={`px-4 py-0.5 rounded-full text-sm font-semibold border ${getDifficultyColor(exercise.difficulty)}`}>
-              {exercise.difficulty}
+      {(exercise.chapters?.length > 0 || exercise.class_levels?.length > 0) && (
+  <div className="flex items-start gap-4 mb-2"> {/* Conteneur Flex pour aligner horizontalement */}
+    {exercise.chapters && exercise.chapters.length > 0 && (
+      <div className="flex items-center gap-1">
+        <Tag className="w-4 h-4 text-gray-600" />
+        <div className="flex flex-wrap gap-2">
+          {exercise.chapters.map((tag) => (
+            <span 
+              key={tag.id} 
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-800"
+            >
+              {tag.name}
             </span>
-          </div>
+          ))}
+        </div>
+      </div>
+    )}
+    {exercise.class_levels && exercise.class_levels.length > 0 && (
+      <div className="flex items-center gap-1">
+        <FontAwesomeIcon 
+          icon={faLayerGroup} 
+          className="text-orange-800"
+        />
+        <div className="flex flex-wrap gap-2">
+          {exercise.class_levels.map((tag) => (
+            <span 
+              key={tag.id} 
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-orange-100 text-orange-800"
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+    {exercise.subject && ( // Afficher le sujet si défini
+      <div className="flex items-center gap-1">
+        <FontAwesomeIcon 
+          icon={faBook} 
+          className="text-red-800"
+        />
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-red-800">
+          {exercise.subject.name}
+        </span>
+      </div>
+    )}
+  </div>
+)}
 
-        {/* Tags */}
-        {exercise.chapters && exercise.chapters.length > 0 && (
-          <div className="flex items-center gap-1 mb-4">
-            <Tag className="w-4 h-4 text-gray-600" />
-            <div className="flex flex-wrap gap-2">
-              {exercise.chapters.map((tag) => (
-                <span 
-                  key={tag.id} 
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                >
-                  {tag.name}
-                </span>
-              ))}
-            </div>
+
+      <div className="flex bg-white border-b mb-8">
+        
+
+      
+
+        <button
+          onClick={() => setActiveSection('exercise')}
+          className={`px-6 py-4 flex items-center text-lg space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
+            activeSection === 'exercise' 
+              ? 'border-red-500 text-red-600 bg-gray-50' 
+              : 'border-transparent text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span className="font-medium">Exercise</span>
+        </button>
+        <button
+          onClick={() => setActiveSection('discussions')}
+          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
+            activeSection === 'discussions' 
+              ? 'border-red-500 text-red-600 bg-gray-50' 
+              : 'border-transparent text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span className="font-medium">Discussions</span>
+          {exercise.comments.length > 0 && (
+            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-gray-200">
+              {exercise.comments.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveSection('proposals')}
+          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
+            activeSection === 'proposals' 
+              ? 'border-red-500 text-red-600 bg-gray-50' 
+              : 'border-transparent text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <GitPullRequest className="w-4 h-4" />
+          <span className="font-medium">Alternative Solutions</span>
+          
+        </button>
+        <button
+          onClick={() => setActiveSection('activity')}
+          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
+            activeSection === 'activity' 
+              ? 'border-red-500 text-red-600 bg-gray-50' 
+              : 'border-transparent text-gray-600 hover:border-gray-300'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span className="font-medium">Activity</span>
+          
+        </button>
+
+      </div>
+{/* Exercise and Solution Sections */}
+{activeSection === 'exercise' && (
+  <>
+    {/* Exercise Section */}
+    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      {/* Content header */}
+      {/* Content */}
+      <div className="prose max-w-none mb-8">
+        {renderMathContent(exercise.content)}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center border-t pt-4">
+        <div className="flex-1">
+          <VoteButtons
+            initialVotes={exercise.vote_count}
+            onVote={(value) => handleVote(value, 'exercise')}
+            vertical={false}
+            userVote={exercise.user_vote}
+          />
+        </div>
+        <div className="text-sm text-gray-600">
+          by {exercise.author?.username} • {new Date(exercise.created_at).toLocaleDateString()}
+        </div>
+        {isAuthor && (
+          <div className="flex gap-2 flex-shrink-0 ml-4">
+            <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </Button>
           </div>
         )}
-
-        {/* Content */}
-        <div className="prose max-w-none mb-8">
-        {renderMathContent(exercise.content)}
-
-        </div>
-        
-
-        {/* Footer */}
-        <div className="flex items-center border-t pt-4">
-  {/* Boutons de vote à gauche */}
-  <div className="flex-1">
-    <VoteButtons
-      initialVotes={(exercise.upvotes_count || 0) - (exercise.downvotes_count || 0)}
-      onVote={(type) => handleVote(type, 'exercise')}
-      vertical={false}
-      userVote={exercise.user_vote}
-    />
-  </div>
-
-  {/* Auteur & Date */}
-  <div className="text-sm text-gray-600">
-    by {exercise.author?.username} • {new Date(exercise.created_at).toLocaleDateString()}
-  </div>
-
-  {/* Boutons Edit & Delete à droite */}
-  {isAuthor && (
-    <div className="flex gap-2 flex-shrink-0 ml-4">
-      <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
-        <Edit className="w-4 h-4 mr-2" />
-        Edit
-      </Button>
-      <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
-        <Trash2 className="w-4 h-4 mr-2" />
-        Delete
-      </Button>
-    </div>
-  )}
-</div>
-
       </div>
+    </div>
 
-      {/* Solution Section */}
-      {hasSolution && (
-        <div className="mt-8">
-          <div 
-            className={`bg-white rounded-lg shadow-md transition-all duration-300 ${showSolution ? 'ring-2 ring-blue-500' : ''}`}
-            onClick={() => setShowSolution(!showSolution)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                setShowSolution(!showSolution);
-              }
-            }}
-          >
-            <div className="px-8 py-6 cursor-pointer hover:bg-gray-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Lightbulb className={`w-6 h-6 ${showSolution ? 'text-blue-500' : 'text-gray-600'}`} />
-                  <h3 className="text-xl font-semibold">Solution</h3>
-                  {firstSolution.upvotes_count > 0 && (
-                    <div className="flex items-center gap-1 text-yellow-600">
-                      <Award className="w-4 h-4" />
-                      <span className="text-sm font-medium">
-                        {firstSolution.upvotes_count - (firstSolution.downvotes_count || 0)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center gap-4">
+    {/* Solution Section - Now separate but still under activeSection condition */}
+    {hasSolution && (
+      <div className="bg-white rounded-lg shadow-md">
+        <div 
+          className={`transition-all duration-300 ${showSolution ? 'ring-2 ring-blue-500' : ''}`}
+          onClick={() => setShowSolution(!showSolution)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              setShowSolution(!showSolution);
+            }
+          }}
+        >
+          <div className="px-8 py-6 cursor-pointer hover:bg-gray-50 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Lightbulb className={`w-6 h-6 ${showSolution ? 'text-blue-500' : 'text-gray-600'}`} />
+                <h3 className="text-xl font-semibold">Solution</h3>
+                {exercise.solution && exercise.solution.vote_count > 0 && (
+                  <div className="flex items-center gap-1 text-yellow-600">
+                    <Award className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      {exercise.solution.vote_count}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
                 {canEditSolution && (
                   <div className="flex items-center gap-0">
                     <Button 
                       variant="ghost" 
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent solution toggle
+                        e.stopPropagation();
                         handleEditSolution();
                       }} 
                       className="text-gray-600 hover:text-blue-600 p-3 m-3"
@@ -485,7 +546,7 @@ export function ExerciseDetail() {
                     <Button 
                       variant="ghost" 
                       onClick={(e) => {
-                        e.stopPropagation(); // Prevent solution toggle
+                        e.stopPropagation();
                         handleDeleteSolution();
                       }} 
                       className="text-gray-600 hover:text-red-600 p-0 m-0"
@@ -495,63 +556,72 @@ export function ExerciseDetail() {
                   </div>
                 )}
 
-                  <Button
-                variant="ghost"
-                onClick={toggleSolutionVisibility}
-                className="text-gray-600 hover:text-blue-600"
-              >
-                <ChevronDown className={`w-8 h-8 transition-transform ${solutionVisible ? "rotate-180" : ""}`} />
-              </Button>
+                <Button
+                  variant="ghost"
+                  onClick={toggleSolutionVisibility}
+                  className="text-gray-600 hover:text-blue-600"
+                >
+                  <ChevronDown className={`w-8 h-8 transition-transform ${solutionVisible ? "rotate-180" : ""}`} />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {solutionVisible && exercise.solution && (
+            <div className="px-8 pb-6" onClick={(e) => e.stopPropagation()}>
+              <div className="border-t pt-6">
+                <div className="prose max-w-none">
+                  <div 
+                    dangerouslySetInnerHTML={{ 
+                      __html: renderLatexContent(exercise.solution.content) 
+                    }} 
+                  />
+                </div>
+                <div className="mt-6 flex items-center justify-between">
+                  <VoteButtons
+                    initialVotes={exercise.solution.vote_count}
+                    onVote={(value) => handleVote(value, 'solution')}
+                    vertical={false}
+                    userVote={exercise.solution.user_vote}
+                  />
+                  <div className="text-sm text-gray-600">
+                    Solution by {exercise.solution.author.username}
+                  </div>
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+    )}
+  </>
+)}
 
-            {solutionVisible && (
-              <div className="px-8 pb-6" onClick={(e) => e.stopPropagation()}>
-                <div className="border-t pt-6">
-                  <div className="prose max-w-none">
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: renderLatexContent(firstSolution.content) 
-                      }} 
-                    />
-                  </div>
-                  <div className="mt-6 flex items-center justify-between">
-                    <VoteButtons
-                      initialVotes={(firstSolution.upvotes_count || 0) - (firstSolution.downvotes_count || 0)}
-                      onVote={(type) => handleVote(type, 'solution')}
-                      vertical={false}
-                      userVote={firstSolution.user_vote}
-                    />
-                    <div className="text-sm text-gray-600">
-                      Solution by {firstSolution.author.username}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+
+
+      {/* Discussions Section */}
+      {activeSection === 'discussions' && (
+        <div className="mt-8" id="comments">
+          <CommentSection
+          comments={exercise?.comments || []}
+          onAddComment={handleAddComment}
+          onVoteComment={handleVoteComment}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+        />
         </div>
       )}
+
+      {/* Solution Section */}
+      
 
       {/* Add Solution Section */}
       {!hasSolution && isAuthor && (
         <div className="mt-8">
           <h2 className="text-2xl font-bold mb-6">Add Solution</h2>
           <div className="bg-white rounded-lg shadow-md p-8">
-            <MDEditor
-              value={solution}
-              onChange={(value) => setSolution(value || '')}
-              preview="edit"
-              height={200}
-              textareaProps={{
-                placeholder: 'Write your solution here... Use LaTeX with $...$ for inline math or $$...$$ for display math'
-              }}
-              previewOptions={{
-                components: {
-                  code: renderLatexInPreview
-                }
-              }}
+          <DualPaneEditor 
+              content={solution} setContent={setSolution} 
             />
             <Button
               onClick={() => handleAddSolution(solution)}
@@ -563,17 +633,6 @@ export function ExerciseDetail() {
           </div>
         </div>
       )}
-
-      {/* Comments section */}
-      <div className="mt-8" id="comments">
-        <CommentSection
-          comments={exercise?.comments || []}
-          onAddComment={handleAddComment}
-          onVoteComment={handleVoteComment}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-        />
-      </div>
     </div>
   );
 }

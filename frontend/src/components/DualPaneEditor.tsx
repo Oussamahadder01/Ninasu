@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Split from "react-split";
 import "katex/dist/katex.min.css";
 import { InlineMath, BlockMath } from "react-katex";
@@ -9,6 +9,15 @@ interface DualPaneEditorProps {
 }
 
 const DualPaneEditor: React.FC<DualPaneEditorProps> = ({ content, setContent }) => {
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [previewHeight, setPreviewHeight] = useState("auto");
+
+  useEffect(() => {
+    if (previewRef.current) {
+      setPreviewHeight(`${previewRef.current.scrollHeight}px`);
+    }
+  }, [content]); // Update when content changes
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
   };
@@ -31,24 +40,28 @@ const DualPaneEditor: React.FC<DualPaneEditorProps> = ({ content, setContent }) 
   };
 
   return (
-    <div className="h-[300px] p-4"> {/* Increased height to 600px */}
-      <Split className="flex h-full" sizes={[50, 50]} minSize={300}>
-        {/* Left Pane: Textarea for LaTeX input */}
-        <textarea
-          className="w-full h-full p-4 border border-gray-300 rounded-md text-left resize-none" // Added resize-none
-          value={content}
-          onChange={handleInputChange}
-          placeholder="Enter your LaTeX here... Use $...$ for inline and $$...$$ for display math"
-        />
+    <div className="p-4">
+      <div className="gap-4 bg-black/20 rounded-lg p-4">
+        <Split className="flex" sizes={[50, 50]} minSize={300}>
+          {/* Left Pane: Textarea for LaTeX input */}
+          <textarea
+            className="w-full  px-4 py-3 bg-white/10 text-xl border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40 transition-all resize-none font-mono"
+            value={content}
+            onChange={handleInputChange}
+            placeholder="Enter your LaTeX here... Use $...$ for inline and $$...$$ for display math"
+          />
 
-        {/* Right Pane: KaTeX Preview */}
-        <div className="w-full h-full p-4 bg-gray-100 border border-gray-300 rounded-md overflow-auto">
-          <h2 className="text-lg font-semibold mb-2">Preview</h2>
-          <div className="prose prose-sm">
-            {renderMathContent(content)}
+          {/* Right Pane: KaTeX Preview */}
+          <div
+            className="w-full px-4 py-3 bg-white/10 text-xl border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40 transition-all font-mono"
+            ref={previewRef}
+            style={{ height: previewHeight, overflow: "hidden" }}
+          >
+            <h2 className="text-xl font-semibold mb-2">Preview</h2>
+            <div className="prose prose-lg">{renderMathContent(content)}</div>
           </div>
-        </div>
-      </Split>
+        </Split>
+      </div>
     </div>
   );
 };

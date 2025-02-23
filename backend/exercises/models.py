@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 
 class ClassLevel(models.Model):
     name = models.CharField(max_length=100)
@@ -30,8 +32,45 @@ class Chapter(models.Model):
 
     def __str__(self):
         return f"{self.name}_{self.class_levels.name}"
+    
+class Vote(models.Model):
+    UP = 1
+    DOWN = -1
+    UNVOTE = 0
 
-class Exercise(models.Model):
+    VOTE_CHOICES = [
+        (UP, 'Upvote'),
+        (DOWN, 'Downvote'),
+        (UNVOTE, 'Unvote'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    value = models.SmallIntegerField(choices=VOTE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    class Meta:
+        unique_together = ('user', 'content_type', 'object_id')
+        indexes = [
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+
+class VotableMixin(models.Model):
+    votes = GenericRelation(Vote)
+
+    class Meta:
+        abstract = True
+
+    @property
+    def vote_count(self):
+        return self.votes.filter(value=Vote.UP).count() - self.votes.filter(value=Vote.DOWN).count()
+
+
+class Exercise(VotableMixin, models.Model):
     DIFFICULTY_CHOICES = [
         ('easy', 'easy'),
         ('medium', 'medium'),
@@ -52,7 +91,7 @@ class Exercise(models.Model):
     def __str__(self):
         return self.title
 
-class Solution(models.Model):
+class Solution(VotableMixin, models.Model):
     exercise = models.OneToOneField(Exercise, on_delete=models.CASCADE, related_name='solution')
     content = models.TextField()
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='solutions')
@@ -62,7 +101,7 @@ class Solution(models.Model):
     def __str__(self):
         return f"Solution for {self.exercise.title}"
 
-class Comment(models.Model):
+class Comment(VotableMixin, models.Model):
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments')
     content = models.TextField()
@@ -72,34 +111,5 @@ class Comment(models.Model):
     def __str__(self):
         return f"Comment by {self.author.username} on {self.exercise.title}"
 
-class Vote(models.Model): 
 
-    VOTE_CHOICES = [
-        ('up', 'Upvote'),
-        ('down', 'Downvote'),
-    ]
-    
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    vote = models.CharField(max_length=4, choices=VOTE_CHOICES)
-    created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        abstract = True
-
-class ExerciseVote(Vote):
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name='votes')
-
-    class Meta:
-        unique_together = ['user', 'exercise']
-
-class CommentVote(Vote):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='votes')
-
-    class Meta:
-        unique_together = ['user', 'comment']
-
-class SolutionVote(Vote):
-    solution = models.ForeignKey(Solution, on_delete=models.CASCADE, related_name='votes')
-
-    class Meta:
-        unique_together = ['user', 'solution']

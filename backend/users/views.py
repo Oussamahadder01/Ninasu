@@ -12,7 +12,9 @@ from .serializers import (
     UserStatsSerializer, 
     UserHistorySerializer,
 )
-from exercises.models import Exercise, ExerciseVote
+from exercises.models import Exercise,Vote
+from django.contrib.contenttypes.models import ContentType
+
 
 class LoginView(views.APIView):
     permission_classes = [AllowAny]
@@ -121,11 +123,17 @@ def get_user_stats(request):
 @permission_classes([IsAuthenticated])
 def get_user_history(request):
     user = request.user
+    exercise_content_type = ContentType.objects.get_for_model(Exercise)
+
     history = {
         'recentlyViewed': Exercise.objects.filter(
             viewhistory__user=user
         ).order_by('-viewhistory__viewed_at')[:5],
-        'upvoted': ExerciseVote.objects.filter(user_id=user, vote = 'up')[:5],
+        'upvoted': Exercise.objects.filter(
+            votes__user=user,
+            votes__value=Vote.UP,
+            votes__content_type=exercise_content_type
+        ).order_by('-votes__created_at')[:5],
     }
     return Response(UserHistorySerializer(history).data)
 

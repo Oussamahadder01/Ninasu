@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import {useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { getContents, voteContent, deleteContent } from '../lib/api';
-import { Content, SortOption, Difficulty } from '../types';
+import { getContents, voteExercise, deleteContent } from '../lib/api';
+import { Content, SortOption, Difficulty, VoteValue } from '../types';
 import { Filters } from '../components/Filters';
 import { SortDropdown } from '../components/SortDropdown';
 import { ContentList } from '../components/ContentList';
 import { useNavigate } from 'react-router-dom';
+import { faPlusCircle } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 const ITEMS_PER_PAGE = 20;
 
@@ -38,7 +40,7 @@ export const ExerciseList = () => {
     try {
       setLoadingState(true);
       setError(null);
-
+  
       const params = {
         ...filters,
         sort: sortBy,
@@ -46,9 +48,13 @@ export const ExerciseList = () => {
         type: 'exercise',
         per_page: ITEMS_PER_PAGE
       };
-
+  
+      console.log("Fetching contents with params:", params);
+  
       const data = await getContents(params);
       
+      console.log("Received data:", data);
+  
       setContents(prev => isLoadMore ? [...prev, ...data.results] : data.results);
       setTotalCount(data.count);
       setHasMore(!!data.next);
@@ -61,19 +67,19 @@ export const ExerciseList = () => {
   };
 
   useEffect(() => {
+    console.log("Sort or filters changed. New sort:", sortBy);
     setPage(1);
     fetchContents();
   }, [sortBy, filters]);
-
   useEffect(() => {
     if (page > 1) {
       fetchContents(true);
     }
   }, [page]);
 
-  const handleVote = async (id: string, type: 'up' | 'down' | 'none') => {
+  const handleVote = async (id: string, type: VoteValue) => {
     try {
-      const updatedExercise = await voteContent(id, type);
+      const updatedExercise = await voteExercise(id, type);
       setContents(prevContents => 
         prevContents.map(content => 
           content.id === id ? updatedExercise : content
@@ -115,10 +121,10 @@ export const ExerciseList = () => {
           </p>
         </div>
         <Link to="/new">
-          <Button className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg">
-            <Plus className="w-5 h-5 mr-2" />
-            Add Exercise
-          </Button>
+        <button className="bg-gradient-to-r from-red-600 to-red-800 text-white px-6 py-3 rounded-xl hover:from-red-700 hover:to-red-900 transition-all duration-200 transform hover:scale-105 shadow-lg flex items-center gap-2 font-medium w-full md:w-auto justify-center">
+            <FontAwesomeIcon icon={faPlusCircle} />
+              Ajouter un exercice
+            </button>
         </Link>
       </div>
 
@@ -131,7 +137,13 @@ export const ExerciseList = () => {
           <div className="mb-6 flex justify-between items-center">
             <div className="flex items-center gap-4">
               <span className="text-gray-600">Sort by:</span>
-              <SortDropdown value={sortBy} onChange={setSortBy} />
+              <SortDropdown 
+                value={sortBy} 
+                onChange={(newSort) => {
+                  console.log("Sort changed to:", newSort);
+                  setSortBy(newSort);
+                }} 
+              />
             </div>
             <div className="text-gray-600">
               {totalCount} exercises found

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
 import { ClassLevelModel, SubjectModel, ChapterModel, Difficulty } from '@/types';
+import { faPlusCircle, faFilter } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 interface FiltersProps {
   onFilterChange: (filters: {
@@ -143,7 +145,10 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-4">Filters</h2>
+      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <FontAwesomeIcon icon={faFilter} />                 
+                   Filtres
+                </h3>
       {renderFilterCategory('Class Levels', 'classLevels', classLevels)}
       {renderFilterCategory('Subjects', 'subjects', subjects)}
       {renderFilterCategory('Chapters', 'chapters', chapters)}

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ContentList } from '../components/ContentList';
 import { Filters } from '../components/Filters';
 import { SortDropdown } from '../components/SortDropdown';
-import { getContents, voteContent } from '../lib/api';
-import { Content, SortOption } from '../types';
+import { getContents, voteExercise } from '../lib/api';
+import { Content, SortOption, VoteValue } from '../types';
 import { Button } from '../components/ui/button';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -57,9 +57,9 @@ export const LessonList = () => {
     fetchContents();
   }, [page, sortBy, filters.type, filters.subject, filters.difficulty, filters.chapter]);
 
-  const handleVote = async (id: string, type: 'up' | 'down') => {
+  const handleVote = async (id: string, type: VoteValue) => {
     try {
-      await voteContent(id, type);
+      await voteExercise(id, type);
       fetchContents();
     } catch (err) {
       console.error('Failed to vote:', err);
@@ -67,10 +67,10 @@ export const LessonList = () => {
   };
 
   const handleFilterChange = (newFilters: {
-    type?: string;
-    subject?: string;
-    difficulty?: string;
-    chapter?: string;
+    classLevels: string[];
+    subjects: string[];
+    chapters: string[];
+    difficulties: Difficulty[];
   }) => {
     setPage(1);
     setContents([]);
