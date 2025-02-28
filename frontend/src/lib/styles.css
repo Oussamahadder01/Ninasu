@@ -1,251 +1,456 @@
-flex-left-nav-container {
-    --hover-curve: var(--expand-curve, cubic-bezier(0.65, 0, 0.35, 1));
-    --unhover-curve: var(--collapse-curve, cubic-bezier(0.87, 0, 0.13, 1));
-    --hover-duration: var(--expand-duration, 300ms);
-    --unhover-duration: var(--collapse-duraction, 250ms);
-    --flex-nav-closed-size: 32px;
-    --flex-nav-expanded-size: 272px;
-    --closed-floating-translation: calc(var(--flex-nav-expanded-size) * -1 + (var(--flex-nav-closed-size)));
-    --open-floating-translation: 0%;
-    --left-nav-box-shadow-none: 0 0 0 rgba(0, 0, 0, 0);
-    --left-nav-box-shadow-hover: var(--elevation-lg);
-    --left-nav-min-height: calc(100vh - var(--shreddit-header-height));
-    --flex-nav-z-index: 100;
-    contain: size,layout;
-    position: relative;
-    box-sizing: border-box;
-    border-right: none!important;
-    min-height: var(--left-nav-min-height)
-}
 
-@supports (height: 100dvh) {
-    flex-left-nav-container {
-        --left-nav-min-height:calc(100dvh - var(--shreddit-header-height))
-    }
-}
-
-@media (prefers-reduced-motion) {
-    flex-left-nav-container {
-        --hover-duration: 0ms;
-        --unhover-duration: 0ms
-    }
-}
-
-flex-left-nav-container[no-animate],flex-left-nav-container[skip-animation] {
-    --hover-duration: 0ms;
-    --unhover-duration: 0ms
-}
-
-flex-left-nav-container:not(:defined) {
-    visibility: visible
-}
-
-flex-left-nav-container reddit-sidebar-nav#left-sidebar {
-    padding-right: 1.5rem
-}
-
-flex-left-nav-container #flex-nav-buttons {
-    position: absolute;
-    top: 20px;
-    z-index: calc(var(--flex-nav-z-index) + 1);
-    right: -16px
-}
-
-flex-left-nav-container #flex-left-nav-container {
-    contain: layout;
-    box-sizing: border-box;
-    will-change: transform,box-shadow,border-right;
-    position: fixed;
-    width: var(--flex-nav-expanded-size);
-    border-right: 1px solid var(--color-neutral-border);
-    background-color: var(--color-neutral-background);
-    box-shadow: var(--left-nav-box-shadow-none);
-    min-height: var(--left-nav-min-height)
-}
-
-flex-left-nav-container #flex-left-nav-contents {
-    will-change: opacity;
-    box-sizing: border-box;
-    opacity: 0;
-    transition: opacity var(--unhover-duration) var(--unhover-curve)
-}
-
-flex-left-nav-container #flex-left-nav-contents[hidden] {
-    display: none
-}
-
-flex-left-nav-container[expanded='1'].hovered #flex-left-nav-container,flex-left-nav-container[expanded='0'] #flex-left-nav-container {
-    display: block;
-    z-index: var(--flex-nav-z-index);
-    visibility: visible;
-    opacity: 1;
-    transform: translate(var(--open-floating-translation));
-    transition: none
-}
-
-flex-left-nav-container[expanded='1'] #flex-nav-expand-button,flex-left-nav-container[expanded='0'] #flex-nav-collapse-button {
-    display: none
-}
-
-flex-left-nav-container[expanded='1'] #flex-left-nav-container {
-    opacity: 1
-}
-
-flex-left-nav-container[expanded='1'].hovered #flex-left-nav-container {
-    transform: translate(var(--open-floating-translation));
-    transition: none
-}
-
-flex-left-nav-container[expanded='1'] #flex-left-nav-contents {
-    opacity: 1;
-    transition: opacity var(--hover-duration) var(--hover-curve)
-}
-
-flex-left-nav-container[expanded='0'] {
-    border-right: 1px solid var(--color-neutral-border)
-}
-
-flex-left-nav-container[expanded='0'] #flex-left-nav-container {
-    transform: translateX(var(--closed-floating-translation))
-}
-
-flex-left-nav-container[expanded='0'].hovered #flex-left-nav-container {
-    box-shadow: var(--left-nav-box-shadow-hover);
-    transform: translate(var(--open-floating-translation));
-    border-right: 1px solid var(--color-neutral-border)
-}
-
-flex-left-nav-container[expanded='0'].hovered #flex-left-nav-contents {
-    opacity: 1
-}
-
-.flex-grid--main-container-card {
-    width: 100%
-}
-
-.grid-container {
-    --expand-duration: 250ms;
-    --collapse-duration: 300ms;
-    --expand-curve: cubic-bezier(0.65, 0, 0.35, 1);
-    --collapse-curve: cubic-bezier(0.87, 0, 0.13, 1);
-    box-sizing: border-box;
-    grid-template-columns: repeat(1,minmax(0,1fr))
-}
-
-@media (prefers-reduced-motion) {
-    .grid-container {
-        --expand-duration: 0ms;
-        --collapse-duration: 0ms
-    }
-}
-
-.grid-container:has(flex-left-nav-container[no-animate]) {
-    --expand-duration: 0ms;
-    --collapse-duration: 0ms
-}
-
-@media (min-width: 1200px) {
-    .grid-container:not(.grid-full),.grid-container:not(.grid-full).flex-nav-expanded {
-        --flex-nav-width:272px;
-        --transition-duration: var(--expand-duration);
-        --transition-curve: var(--expand-curve)
-    }
-
-    .grid-container:not(.grid-full).flex-nav-collapsed {
-        --flex-nav-width: 32px;
-        --transition-duration: var(--collapse-duration);
-        --transition-curve: var(--collapse-curve)
-    }
-
-    .grid-container:not(.grid-full) {
-        will-change: --flex-nav-width;
-        grid-template-columns: var(--flex-nav-width) 1fr;
-        transition: grid-template-columns var(--transition-duration) var(--transition-curve)
-    }
-
-    .grid-container:not(.grid-full) .subgrid-container {
-        will-change: max-width,--flex-nav-width;
-        max-width: calc(100vw - var(--flex-nav-width,0px));
-        transition: max-width var(--transition-duration) var(--transition-curve)
-    }
-}
-
-@media (min-width: 768px) {
-    .flex-grid--main-container-card.right-sidebar-xs {
-        max-width:calc(100% - (1.5rem + 316px))
-    }
-}
-
-@media (min-width: 960px) {
-    .flex-grid--main-container-card.right-sidebar-s {
-        max-width:calc(100% - (1.5rem + 316px))
-    }
-}
-
-@media (min-width: 1128px) {
-    .flex-grid--main-container-card.right-sidebar-s,.flex-grid--main-container-card.right-sidebar-xs {
-        max-width:756px
-    }
-}
-
-@media (min-width: 1200px) {
-    .flex-grid--main-container-card.right-sidebar-m,.flex-grid--main-container-card.right-sidebar-s,.flex-grid--main-container-card.right-sidebar-xs {
-        max-width:calc(100% - (1.5rem + 316px))
-    }
-}
-
-@media (min-width: 1400px) {
-    .flex-grid--main-container-card.right-sidebar-m,.flex-grid--main-container-card.right-sidebar-s,.flex-grid--main-container-card.right-sidebar-xs {
-        max-width:756px
-    }
-}
-
-@media (min-width: 1416px) {
-    .flex-grid--main-container-card.right-sidebar-l {
-        max-width:756px
-    }
-}
-
-@media (min-width: 1920px) {
-    .flex-grid--main-container-card.right-sidebar-xl {
-        max-width:756px
-    }
-}
-.vertical-line {
-    width: 1px;
-    background-color: #080808; /* Light gray */
-    opacity: 0; /* Slightly transparent */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;700&display=swap');
+  
+  .cube-unit {
+    fill-opacity: .9;
+    stroke-miterlimit: 0;
   }
 
 
 
-/* Custom Button Shell (Base Styling) */
-.button-shell {
-    padding: 0.5rem;
-    border-radius: 9999px;
-    border: 1px solid #d1d5db; /* border-gray-300 */
-    transition-property: border-color;
-    transition-duration: 200ms;
-    &:hover {
-        border-color: #9ca3af; /* border-gray-400 */
-    }
+.cube-unit {
+  fill-opacity: .9;
+  stroke-miterlimit:0;
+}
+
+.logo-container img {
+    transition: opacity 0.3s ease;
+  }
+  .custom-gradient {
+    background: linear-gradient(to right, rgb(44, 57, 48), rgb(162, 123, 92));
+  }
+
+
+
+
+  :root {
+    --customblue: #F4F7F9;
+    --customblue1:  #DDE5ED;
+    --customblue2: #2C5282;
+    --customblue3: #2B6CB0;
   }
   
-  /* Secondary Button Styling */
-  .button-secondary {
-    background-color: transparent;
-    color: #6b7280; /* text-gray-500 */
-    &:hover {
-        color: #374151; /* text-gray-700 */
-    }
+  .custom-gradient1 {
+    background: linear-gradient(to right, var(--customblue), var(--customblue1));
   }
+
+  .custom-gradient {
+    background: linear-gradient(to right, var(--customblue1), var(--customblue), var(--customblue3));
+  }
+
+  .fjalla-one-regular {
+    font-family: "Fjalla One", serif;
+    font-weight: 400;
+    font-style: normal;
+  }
+  .ProseMirror {
+          min-height: 400px;
+          outline: none;
+        }
+        
+        /* Styling for the math editor and render */
+        .Tiptap-mathematics-editor {
+          background-color: rgba(0, 0, 0, 0.04);
+          border-radius: 3px;
+          padding: 0 4px;
+          font-family: monospace;
+        }
+        
+        .Tiptap-mathematics-render {
+          display: inline-block;
+          padding: 0 4px;
+        }
+        
+        /* Style block math differently */
+        .ProseMirror p:has(.Tiptap-mathematics-render:only-child:has(.katex-display)) {
+          display: flex;
+          justify-content: center;
+          margin: 1rem 0;}
+/* TipTap Read-only Editor Styles */
+/* TipTap Read-only Editor Styles */
+.tiptap-readonly-editor {
+  /* Remove editor-like UI */
+  outline: none;
+  cursor: auto;
+}
+
+.tiptap-readonly-editor .ProseMirror {
+  outline: none !important;
+  /* Prevent any editing UI */
+  caret-color: transparent;
+  /* Remove minimum height and extra padding */
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Handle math rendering */
+.tiptap-readonly-editor [data-math] {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tiptap-readonly-editor [data-math-display="block"] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+/* Improve LaTeX style */
+/* Make sure images don't overflow */
+.tiptap-readonly-editor img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Text styling */
+.tiptap-readonly-editor strong {
+  font-weight: bold;
+}
+
+.tiptap-readonly-editor em {
+  font-style: italic;
+}
+
+/* Fix for long LaTeX formulas */
+.tiptap-readonly-editor .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+/* Color applied text */
+.tiptap-readonly-editor [style*="color"] {
+  display: inline;
+}
+/* TipTap Read-only Editor Styles */
+.tiptap-readonly-editor {
+  /* Remove editor-like UI */
+  outline: none;
+  cursor: auto;
+}
+
+.tiptap-readonly-editor .ProseMirror {
+  outline: none !important;
+  /* Prevent any editing UI */
+  caret-color: transparent;
+}
+
+/* Compact mode for cards and previews */
+.tiptap-compact .ProseMirror {
+  /* Remove minimum height and extra padding */
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Ensure paragraphs don't add extra bottom spacing in compact mode */
+.tiptap-compact .ProseMirror > p:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Ensure last element doesn't add extra space */
+.tiptap-compact .ProseMirror > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Handle math rendering */
+.tiptap-readonly-editor [data-math] {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tiptap-readonly-editor [data-math-display="block"] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+/* Improve LaTeX style */
+.latex-style {
+  font-family: 'Times New Roman', Times, serif;
+  line-height: 1.5;
+}
+
+.latex-style .ProseMirror p {
+  margin-bottom: 1rem;
+}
+
+/* Make sure images don't overflow and display properly */
+.tiptap-readonly-editor img,
+.tiptap-readonly-editor .content-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.5rem 0;
+  border-radius: 4px;
+}
+
+/* Text styling */
+.tiptap-readonly-editor strong {
+  font-weight: bold;
+}
+
+.tiptap-readonly-editor em {
+  font-style: italic;
+}
+
+/* Fix for long LaTeX formulas */
+.tiptap-readonly-editor .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
+
+/* Color applied text */
+.tiptap-readonly-editor [style*="color"] {
+  display: inline;
+}
+
+  .latex-style {
+    font-family: "Latin Modern Roman", serif;
+    font-weight: 400;
+    font-style: normal;
+}
+.mathpazo-style {
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+
+  /* styles.css or the CSS file you use for your app */
+
+/* Add these styles to make KaTeX formulas wrap better in your cards */
+
+/* Wrapper for content with KaTeX */
+.katex-container {
+  width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+
+/* For inline math */
+.katex-inline {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+/* For block math */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 0;
+  margin: 0.5em 0;
+}
+
+/* For long math expressions, allow scrolling only when needed */
+.prose .math-block {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1em 0;
+}
+
+/* For regular text, ensure it wraps properly */
+.prose p, .prose span:not(.katex) {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+
+
+/* Make complex KaTeX expressions scrollable horizontally if they're too long */
+.katex-html {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px; /* Space for scrollbar */
+}
+
+/* Optional: Hide scrollbar but keep functionality */
+.katex-html::-webkit-scrollbar {
+  height: 4px;
+}
+
+.katex-html::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+/* Ajoutez ce CSS dans votre fichier de styles global */
+
+/* Style pour le conteneur de contenu */
+.content-card .prose {
+  max-width: none;
+  width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Style pour les éléments de texte spécifiques */
+.text-wrapper {
+  word-break: break-all !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  -webkit-hyphens: auto !important;
+  hyphens: auto !important;
+}
+
+
+.component {
+  white-space: normal;
+  width: 200px; /* Set a width to make the content overflow */
+}
+
+
+
+/* Style pour gérer les formules mathématiques */
+.math-wrapper {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Fix pour les expressions KaTex avec des caractères spéciaux */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5em 0;
+}
+
+/* Assure que KaTeX ne dépasse pas la largeur */
+.katex-html {
+  max-width: 100%;
+}
+
+/* Override pour les sélecteurs spécifiques de KaTeX */
+.katex, .katex-mathml {
+  max-width: 100%;
+}
+
+/* Correction pour les énumérations et listes */
+
+/* Réparation des problèmes avec les longues chaînes de texte sans espace */
+.content-card {
+  overflow-wrap: break-words; /* Ensures long words wrap on overflow */
+  white-space: normal; /* Prevents non-breaking spaces from preventing wrapping */
+  width: 100%; /* Makes sure the container takes full width of its parent */
+  height: auto; /* Ensures the container height adjusts based on content */
   
-  /* Activated Button Styling (e.g., Upvoted/Downvoted) */
-  .button-activated {
-    color: #f97316; /* text-orange-500 */
-    border-color: #f97316; /* border-orange-500 */
-    &:hover {
-        color: #ea580c; /* hover:text-orange-600 */
-        border-color: #ea580c; /* hover:border-orange-600 */
-    }
-  }
+  
+}
+
+/* Math Formulas Dropdown Styles */
+
+/* Scrollbar styling for the formulas dropdown */
+.math-formulas-dropdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.math-formulas-dropdown::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.math-formulas-dropdown::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.math-formulas-dropdown::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Formula button hover effect */
+.formula-button:hover {
+  background-color: rgba(79, 70, 229, 0.1);
+}
+
+/* Category header styling */
+.formula-category {
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+}
+
+/* Tooltip for formula descriptions */
+.formula-tooltip {
+  position: relative;
+}
+
+.formula-tooltip:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 0;
+  background: rgba(55, 65, 81, 0.9);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  z-index: 30;
+  max-width: 200px;
+}
+
+/* Make sure formulas with longer content display block */
+[data-math-display="block"] {
+  overflow-x: auto;
+  margin: 1rem 0;
+  text-align: center;
+  width: 100%;
+}
+
+/* Additional styling for rendered math in the editor */
+.ProseMirror [data-math]:not([data-math-display="block"]) {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.ProseMirror [data-math-display="block"] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.math-block {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+/* Ensure inline math is properly aligned */
+.math-inline {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Additional styling for LaTeX content */
+.ProseMirror .katex-display {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+/* Fix for display mode equations */
+[data-type="mathematics"][data-mode="display"] {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 1rem 0;
+}

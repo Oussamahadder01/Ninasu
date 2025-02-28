@@ -1,14 +1,15 @@
 from rest_framework import serializers
 from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment, Vote
-from django.contrib.auth.models import User
+from users.serializers import UserSerializer
+from users.models import ViewHistory
 import logging 
+
 
 logger = logging.getLogger('django')
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email']
+
+#----------------------------CLASS LEVELS/ SUBJECT / CHAPTER-------------------------------
+
 
 class ClassLevelSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,14 +27,14 @@ class ChapterSerializer(serializers.ModelSerializer):
     subject = SubjectSerializer(read_only=True)
     class_levels = ClassLevelSerializer(many=True, read_only=True)
 
+
     class Meta:
         model = Chapter
         fields = ['id', 'name', 'order', 'subject', 'class_levels']
 
-class VoteSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Vote
-        fields = ['id', 'value', 'created_at', 'updated_at']
+
+#----------------------------COMMENT-------------------------------
+
 
 class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
@@ -54,9 +55,10 @@ class CommentSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if user.is_authenticated:
             vote = obj.votes.filter(user=user).first()
-            logger.info(vote)
             return vote.value if vote else None
         return None
+#----------------------------SOLUTION-------------------------------
+
 
 class SolutionSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
@@ -74,6 +76,9 @@ class SolutionSerializer(serializers.ModelSerializer):
 
             return vote.value if vote else None
         return None
+    
+#----------------------------EXERCISE-------------------------------
+
 
 class ExerciseSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
@@ -110,6 +115,8 @@ class ExerciseSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
     
+
+    
 class ExerciseCreateSerializer(serializers.ModelSerializer):
     solution_content = serializers.CharField(required=False, allow_blank=True)
     chapters = serializers.PrimaryKeyRelatedField(many=True, queryset=Chapter.objects.all(), required=False)
@@ -131,6 +138,8 @@ class ExerciseCreateSerializer(serializers.ModelSerializer):
         solution_content = validated_data.pop('solution_content', None)
         chapters = validated_data.pop('chapters', [])
         class_levels = validated_data.pop('class_levels', [])
+
+        logger.info(**validated_data)
         
         exercise = Exercise.objects.create(
             author=self.context['request'].user,
@@ -172,5 +181,69 @@ class ExerciseCreateSerializer(serializers.ModelSerializer):
             solution.content = solution_content
             solution.save()
         
+        instance.save()
+        return instance
+class ViewHistorySerializer(serializers.ModelSerializer):
+    content = ExerciseSerializer()
+
+    class Meta:
+        model = ViewHistory
+        fields = ('content', 'viewed_at', 'completed')
+
+class UserHistorySerializer(serializers.Serializer):
+    recentlyViewed = ExerciseSerializer(many=True)
+    upvoted = ExerciseSerializer(many=True)
+
+
+
+class VoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = ['id', 'value', 'created_at', 'updated_at']
+
+
+class TheoremSerializer(serializers.ModelSerializer):
+    subject = SubjectSerializer(read_only=True)
+    class_levels = ClassLevelSerializer(many=True, read_only=True)
+    Chapter = ChapterSerializer(read_only = True)
+
+
+    class Meta:
+        model = Chapter
+        fields = ['id', 'name', 'order', 'subject', 'class_levels']
+
+
+class LessonSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+    chapters = ChapterSerializer(many=True, read_only=True)
+    comments = CommentSerializer(many=True, read_only=True)
+    solution = SolutionSerializer(read_only=True)
+    vote_count = serializers.IntegerField(read_only=True)
+    user_vote = serializers.SerializerMethodField()
+    view_count = serializers.IntegerField(read_only=True)
+    class_levels = ClassLevelSerializer(many=True, read_only=True)
+    subject = SubjectSerializer(read_only=True)
+    theorems = TheoremSerializer(many = True)
+
+    class Meta:
+        model = Exercise
+        fields = ['id', 'title', 'content', 'chapters', 'author', 'created_at', 'updated_at', 'view_count', 'comments', 'solution', 'vote_count', 'user_vote', 'class_levels', 'subject']
+
+    def get_user_vote(self, obj):
+        user = self.context['request'].user
+        if user.is_authenticated:
+            vote = obj.votes.filter(user=user).first()
+            return vote.value if vote else None
+        return None
+
+    def update(self, instance, validated_data):
+        chapters = validated_data.pop('chapters', None)
+        class_levels = validated_data.pop('class_levels', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if chapters is not None:
+            instance.chapters.set(chapters)
+        if class_levels is not None:
+            instance.class_levels.set(class_levels)
         instance.save()
         return instance

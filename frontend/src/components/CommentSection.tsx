@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { VoteButtons } from './VoteButtons';
 import { Button } from './ui/button';
-import { MessageSquare, X, Edit2, Trash2, AtSign, ChevronDown } from 'lucide-react';
+import { 
+  MessageSquare, 
+  X, 
+  Edit, 
+  Trash2, 
+  AtSign, 
+  ChevronDown, 
+
+  Send,
+  AlertCircle,
+  CornerDownRight
+} from 'lucide-react';
 import { Comment, User, VoteValue } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { VoteButtonsComment } from './VoteButtonsComment';
@@ -34,11 +44,10 @@ export function CommentSection({
   const [cursorPosition, setCursorPosition] = useState<{ top: number; left: number } | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [showButtons, setShowButtons] = useState(false);
-  const [showReplyButtons, setShowReplyButtons] = useState(false); // Separate state for reply buttons
+  const [showReplyButtons, setShowReplyButtons] = useState(false);
 
   // Sorting state
   const [sortOption, setSortOption] = useState<'mostUpvoted' | 'recent' | 'oldest'>(() => {
-    // Load the saved sorting option from localStorage, default to 'mostUpvoted'
     const savedSortOption = localStorage.getItem('sortOption');
     return savedSortOption ? savedSortOption as 'mostUpvoted' | 'recent' | 'oldest' : 'mostUpvoted';
   });
@@ -61,15 +70,13 @@ export function CommentSection({
   // Handle sorting option change
   const handleSortChange = (option: 'mostUpvoted' | 'recent' | 'oldest') => {
     setSortOption(option);
-    // Save the selected sorting option to localStorage
     localStorage.setItem('sortOption', option);
   };
-
 
   const handleStartReply = (commentId: string, authorUsername: string) => {
     setReplyingTo(commentId);
     setReplyContent(`@${authorUsername} `);
-    setShowReplyButtons(true); // Show buttons for reply editor
+    setShowReplyButtons(true);
   };
 
   const handleMention = (username: string, textareaRef: HTMLTextAreaElement) => {
@@ -169,7 +176,7 @@ export function CommentSection({
       await onAddComment(replyContent, parentId);
       setReplyContent('');
       setReplyingTo(null);
-      setShowReplyButtons(false); // Hide buttons for reply editor
+      setShowReplyButtons(false);
     } finally {
       setSubmitting(false);
     }
@@ -228,58 +235,93 @@ export function CommentSection({
           left: cursorPosition.left + window.scrollX,
         }}
       >
-        {filteredUsers.map((user) => (
-          <button
-            key={user.id}
-            type="button"
-            className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              const textarea = document.querySelector('textarea:focus');
-              if (textarea) {
-                handleMention(user.username, textarea as HTMLTextAreaElement);
-              }
-            }}
-          >
-            <AtSign className="w-4 h-4 text-gray-500" />
-            {user.username}
-          </button>
-        ))}
+        {filteredUsers.length > 0 ? (
+          filteredUsers.map((user) => (
+            <button
+              key={user.id}
+              type="button"
+              className="w-full px-4 py-2 text-left hover:bg-indigo-50 flex items-center gap-2"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const textarea = document.querySelector('textarea:focus');
+                if (textarea) {
+                  handleMention(user.username, textarea as HTMLTextAreaElement);
+                }
+              }}
+            >
+              <AtSign className="w-4 h-4 text-indigo-500" />
+              {user.username}
+            </button>
+          ))
+        ) : (
+          <div className="px-4 py-2 text-gray-500 text-sm">No users found</div>
+        )}
       </div>
     );
   };
 
   const renderCommentContent = (comment: Comment) => (
-    <div className="bg-white rounded-lg shadow-sm p-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:border-indigo-100 transition-colors">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <a
-            href={`/user/${comment.author.username}/`}
-            className="font-bold text-sm text-gray-900 hover:underline"
-          >
-            {comment.author.username}
-          </a>
-          <span className="text-sm text-gray-500">•</span>
-          <time className="text-sm text-gray-500" dateTime={comment.created_at}>
-            {formatTimeSince(comment.created_at)}
-          </time>
+          <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-medium">
+            {comment.author.username.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <a
+              href={`/user/${comment.author.username}/`}
+              className="font-bold text-sm text-gray-900 hover:text-indigo-600 hover:underline"
+            >
+              {comment.author.username}
+            </a>
+            <div className="flex items-center text-xs text-gray-500">
+              <time dateTime={comment.created_at}>{formatTimeSince(comment.created_at)}</time>
+            </div>
+          </div>
         </div>
+        
+        {user?.id === comment.author.id && editingComment !== comment.id && (
+          <div className="flex gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStartEdit(comment);
+              }}
+              className="p-1 text-gray-400 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-colors"
+              title="Edit comment"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(comment.id);
+              }}
+              className="p-1 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50 transition-colors"
+              title="Delete comment"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {editingComment === comment.id ? (
-        <div className="mt-4">
+        <div className="mt-3">
           <textarea
             value={editContent}
             onChange={(e) => handleTextareaChange(e, setEditContent)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             rows={3}
             placeholder="Edit your comment..."
           />
           <div className="mt-2 flex justify-end gap-2">
             <Button
               size="sm"
+              variant="outline"
               onClick={handleCancelEdit}
               disabled={submitting}
+              className="rounded-full border-gray-200 text-gray-600 hover:bg-gray-50"
             >
               Cancel
             </Button>
@@ -287,20 +329,23 @@ export function CommentSection({
               size="sm"
               onClick={() => handleEditSubmit(comment.id)}
               disabled={submitting || !editContent.trim()}
+              className="rounded-full bg-indigo-600 hover:bg-indigo-700"
             >
               {submitting ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </div>
       ) : (
-        <div className="mt-2 text-gray-800">{comment.content}</div>
+        <div className="mt-2 text-gray-800 whitespace-pre-wrap">
+          {comment.content}
+        </div>
       )}
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex gap-3 items-center">
         {isAuthenticated && (
           <VoteButtonsComment
-            initialVotes={(comment.vote_count)}
-            onVote={(type) => onVoteComment(comment.id, type)}
+            initialVotes={comment.vote_count}
+            onVote={(type: VoteValue) => onVoteComment(comment.id, type)}
             vertical={false}
             userVote={comment.user_vote}
           />
@@ -311,51 +356,29 @@ export function CommentSection({
             variant="ghost"
             size="sm"
             onClick={() => handleStartReply(comment.id, comment.author.username)}
-            className="text-gray-600 hover:text-blue-600"
+            className="text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full"
           >
             <MessageSquare className="w-4 h-4 mr-1" />
             Reply
           </Button>
-        )}
-
-        {user?.id === comment.author.id && editingComment !== comment.id && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleStartEdit(comment)}
-              className="text-gray-600 hover:text-blue-600"
-            >
-              <Edit2 className="w-4 h-4 mr-1" />
-              Edit
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDelete(comment.id)}
-              className="text-gray-600 hover:text-red-600"
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Delete
-            </Button>
-          </>
         )}
       </div>
     </div>
   );
 
   const renderReplyForm = (parentId: string, parentAuthor: string) => (
-    <div className="mt-4 relative">
+    <div className="mt-4 relative pl-6 border-l-2 border-indigo-100">
       <div className="flex items-center gap-2 mb-2">
+        <CornerDownRight className="w-4 h-4 text-indigo-400" />
         <span className="text-sm text-gray-600">
-          Replying to {parentAuthor}
+          Replying to <span className="font-medium text-indigo-600">@{parentAuthor}</span>
         </span>
         <button
           onClick={() => {
             setReplyingTo(null);
-            setShowReplyButtons(false); // Hide buttons when canceling reply
+            setShowReplyButtons(false);
           }}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
           title="Cancel reply"
         >
           <X className="w-4 h-4" />
@@ -365,30 +388,31 @@ export function CommentSection({
         value={replyContent}
         onChange={(e) => handleTextareaChange(e, setReplyContent)}
         placeholder="Write your reply..."
-        className="w-full p-1 border rounded-3xl  focus:ring-blue-900 focus:border-transparent"
+        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
         rows={3}
       />
-      {/* Buttons inside the reply editor */}
       {showReplyButtons && (
-        <div className="absolute bottom-2 right-2 flex gap-3">
-          <button
-            type="button"
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-3xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="mt-2 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               setReplyingTo(null);
-              setShowReplyButtons(false); // Hide buttons when canceling reply
+              setShowReplyButtons(false);
             }}
+            className="rounded-full border-gray-200 text-gray-600 hover:bg-gray-50"
           >
             Cancel
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            size="sm"
             onClick={() => handleSubmitReply(parentId)}
             disabled={submitting || !replyContent.trim()}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-900 rounded-3xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rounded-full bg-indigo-600 hover:bg-indigo-700"
           >
-            {submitting ? 'Posting...' : 'Comment'}
-          </button>
+            {submitting ? 'Posting...' : 'Reply'}
+            <Send className="w-3.5 h-3.5 ml-1.5" />
+          </Button>
         </div>
       )}
     </div>
@@ -397,27 +421,25 @@ export function CommentSection({
   const renderComment = (comment: Comment, depth = 0) => {
     const maxDepth = 3;
     const currentDepth = Math.min(depth, maxDepth);
-    const marginLeft = currentDepth * 24;
+    const paddingLeft = currentDepth * 16;
 
     return (
-      <div key={comment.id} className="relative" style={{ marginLeft: `${marginLeft}px` }}>
+      <div key={comment.id} className="relative" style={{ marginLeft: `${paddingLeft}px` }}>
         {depth > 0 && (
           <div
-            className="absolute top-0 left-[-12px] bottom-0 w-[1px] bg-gray-300"
+            className="absolute top-0 left-[-12px] bottom-0 w-[2px] bg-indigo-100 rounded-full"
             style={{ height: '100%' }}
           ></div>
         )}
 
-        <div className="flex gap-4">
-          <div className="flex-1">
-            {renderCommentContent(comment)}
-            {replyingTo === comment.id && renderReplyForm(comment.id, comment.author.username)}
-            {comment.replies && comment.replies.length > 0 && (
-              <div className="mt-4">
-                {comment.replies.map((reply) => renderComment(reply, depth + 1))}
-              </div>
-            )}
-          </div>
+        <div className="mb-4">
+          {renderCommentContent(comment)}
+          {replyingTo === comment.id && renderReplyForm(comment.id, comment.author.username)}
+          {comment.replies && comment.replies.length > 0 && (
+            <div className="mt-4">
+              {comment.replies.map((reply) => renderComment(reply, depth + 1))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -441,7 +463,38 @@ export function CommentSection({
 
   return (
     <div className="relative max-w-full mx-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">Comments</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center">
+          <MessageSquare className="w-5 h-5 mr-2 text-indigo-600" />
+          Discussion
+          {comments.length > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-800 text-sm rounded-full">
+              {comments.length}
+            </span>
+          )}
+        </h2>
+        
+        {/* Sorting Dropdown */}
+        <div className="relative">
+          <label htmlFor="sort-comments" className="sr-only">Sort comments</label>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Sort by:</span>
+            <select
+              id="sort-comments"
+              value={sortOption}
+              onChange={(e) => handleSortChange(e.target.value as 'mostUpvoted' | 'recent' | 'oldest')}
+              className="appearance-none bg-white border border-gray-200 rounded-full px-3 py-1.5 pr-8 text-sm text-gray-700 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="mostUpvoted">Most Upvoted</option>
+              <option value="recent">Recent</option>
+              <option value="oldest">Oldest</option>
+            </select>
+            <div className="pointer-events-none absolute right-2 flex items-center text-gray-500">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* New Comment Form */}
       {isAuthenticated ? (
@@ -451,28 +504,28 @@ export function CommentSection({
               value={newComment}
               onChange={(e) => handleTextareaChange(e, setNewComment)}
               placeholder="Write a comment..."
-              className="comment-textarea"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-y min-h-[100px]"
               onFocus={() => setShowButtons(true)}
             />
 
-            {/* Buttons inside the base comment editor */}
             {showButtons && (
-              <div className="absolute bottom-2 right-2 flex gap-2">
-                <button
+              <div className="mt-3 flex justify-end gap-2">
+                <Button
                   type="button"
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-3xl hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  variant="outline"
                   onClick={(e) => {
                     e.preventDefault();
                     setNewComment('');
                     setShowButtons(false);
                   }}
+                  className="rounded-full border-gray-200 text-gray-600 hover:bg-gray-50"
                 >
                   Cancel
-                </button>
+                </Button>
 
-                <button
+                <Button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-900 rounded-3xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-full bg-indigo-600 hover:bg-indigo-700"
                   disabled={submitting || !newComment.trim()}
                 >
                   {submitting ? (
@@ -500,54 +553,47 @@ export function CommentSection({
                       Posting...
                     </span>
                   ) : (
-                    'Comment'
+                    <>
+                      Comment
+                      <Send className="ml-2 w-4 h-4" />
+                    </>
                   )}
-                </button>
+                </Button>
               </div>
             )}
           </div>
         </form>
       ) : (
-        <div className="mt-4 p-1 bg-gray-50 rounded-3xl border border-gray-200 text-center text-gray-700">
-          Please{' '}
-          <a href="/login" className="text-blue-600 hover:underline">
-            log in
-          </a>{' '}
-          to comment.
+        <div className="mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-center">
+          <div className="flex items-center justify-center gap-2 text-indigo-800 mb-2">
+            <AlertCircle className="w-5 h-5" />
+            <span className="font-medium">You need to be logged in to comment</span>
+          </div>
+          <p className="text-sm text-indigo-600">
+            Please{' '}
+            <a href="/login" className="font-medium underline hover:text-indigo-800">
+              log in
+            </a>{' '}
+            or{' '}
+            <a href="/signup" className="font-medium underline hover:text-indigo-800">
+              sign up
+            </a>{' '}
+            to join the discussion.
+          </p>
         </div>
       )}
 
-      {/* Sorting Dropdown */}
-      <div className="gap-2 mb-4 flex justify-start">
-        <div className="relative">
-          <label htmlFor="sort-comments" className="sr-only">Sort comments</label>
-          <span className="mr-2">Sort by :</span>   
-          <select
-            id="sort-comments"
-            value={sortOption}
-            onChange={(e) => handleSortChange(e.target.value as 'mostUpvoted' | 'recent' | 'oldest')}
-            className="gap-2 appearance-none bg-white border border-gray-200 rounded-2xl px-4 py-2 pr-8 text-sm text-gray-700  hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            
-            <option value="mostUpvoted">Most Upvoted</option>
-            <option value="recent">Recent</option>
-            <option value="oldest">Oldest</option>
-          </select>
-          <div className="gap-2 pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 rounded-3xl">
-            <ChevronDown className="w-4 h-4" />
-          </div>
-        </div>
-      </div>
-
       {/* Comment List */}
-      <div className="space-y-6">
+      <div className="space-y-4">
         {sortedComments
           .filter((comment) => !comment.parent_id)
           .map((comment) => renderComment(comment))}
 
         {comments.length === 0 && (
-          <div className="text-center text-gray-600 py-8">
-            No comments yet. Be the first to comment!
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+            <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-700 mb-1">No comments yet</h3>
+            <p className="text-gray-500">Be the first to share your thoughts!</p>
           </div>
         )}
       </div>

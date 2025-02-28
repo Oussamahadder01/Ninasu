@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment
+from things.models import ClassLevel, Subject, Chapter, Exercise, Solution, Comment
 
 @admin.register(ClassLevel)
 class ClassLevelAdmin(admin.ModelAdmin):

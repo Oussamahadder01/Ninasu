@@ -6,3 +6,7 @@
 /venv
 /backend/.venv
 .hintrc
+/backend/exercises/migrations
+/backend/exercises/migrations
+/backend/things/__pycache__
+/backend/things/migrations/__pycache__

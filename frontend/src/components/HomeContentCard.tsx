@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Tag, Eye, User, Clock } from 'lucide-react';
+import { MessageSquare, Tag, Eye, User, Clock, BarChart3, GraduationCap } from 'lucide-react';
 import { Content, VoteValue, Difficulty } from '@/types';
 import { VoteButtons } from './VoteButtons';
-import { InlineMath } from "react-katex";
 import { truncateText } from '@/lib/utils';
+import { InlineMath, BlockMath } from "react-katex";
+import TipTapRenderer from './editor/TipTapRenderer';
 
 interface HomeContentCardProps {
   content: Content;
@@ -22,22 +23,78 @@ export const HomeContentCard: React.FC<HomeContentCardProps> = ({
   const getDifficultyColor = (difficulty: Difficulty): string => {
     switch (difficulty) {
       case 'easy':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'from-emerald-600 to-green-600 text-white';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'from-amber-600 to-yellow-600 text-white';
       case 'hard':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'from-red-600 to-pink-600 text-white';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'from-gray-600 to-gray-500 text-white';
+    }
+  };
+  
+  const getDifficultyIcon = (difficulty: Difficulty) => {
+    switch (difficulty) {
+      case 'easy':
+        return <BarChart3 className="w-4 h-4" />;
+      case 'medium':
+        return (
+          <div className="flex">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+        );
+      case 'hard':
+        return (
+          <div className="flex">
+            <BarChart3 className="w-4 h-4" />
+          </div>
+        );
+      default:
+        return <BarChart3 className="w-4 h-4" />;
+    }
+  };
+  
+  const getDifficultyLabel = (difficulty: Difficulty): string => {
+    switch (difficulty) {
+      case 'easy':
+        return 'Facile';
+      case 'medium':
+        return 'Moyen';
+      case 'hard':
+        return 'Difficile';
+      default:
+        return difficulty;
     }
   };
 
   const renderMathContent = (text: string) => {
-    const parts = text.split(/(\$.*?\$)/g);
+    if (!text) return null;
+    
+    const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
     return parts.map((part, index) => {
-      if (part.startsWith('$') && part.endsWith('$')) {
-        return <InlineMath key={index} math={part.slice(1, -1)} />;
+      if (part.startsWith('$$') && part.endsWith('$$')) {
+        // Display math (centered)
+        try {
+          return (
+            <div key={index} className="my-2 text-center">
+              <BlockMath math={part.slice(2, -2)} />
+            </div>
+          );
+        } catch (error) {
+          return <div key={index} className="text-red-500">Erreur: {part}</div>;
+        }
+      } else if (part.startsWith('$') && part.endsWith('$')) {
+        // Inline math (left-aligned)
+        try {
+          return <InlineMath key={index} math={part.slice(1, -1)} />;
+        } catch (error) {
+          return <span key={index} className="text-red-500">Erreur: {part}</span>;
+        }
+      } else if (part.startsWith('$') || part.endsWith('$')) {
+        // Incomplete LaTeX expression (render as plain text)
+        return <span key={index}>{part}</span>;
       } else {
+        // Regular text
         return <span key={index}>{part}</span>;
       }
     });
@@ -45,91 +102,109 @@ export const HomeContentCard: React.FC<HomeContentCardProps> = ({
 
   return (
     <div
-      className="home-content-card bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 overflow-hidden group cursor-pointer"
+      className="home-content-card bg-white rounded-3xl shadow-md hover:shadow-2xl transition-all duration-300 border border-gray-200 hover:border-indigo-200 overflow-hidden group cursor-pointer transform hover:-translate-y-1"
       onClick={handleCardClick}
     >
-      <div className="p-6">
-        {/* Header: Subject and Difficulty */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="bg-gradient-to-l from-red-200 to-gray-400 text-black px-2 py-1 rounded-bl-2xl font-medium text-sm">
-            {content.subject.name}
-          </span>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getDifficultyColor(content.difficulty)}`}>
-            {content.difficulty}
-          </span>
-        </div>
+      <div className="flex flex-col h-full">
+        {/* Compact header with title and difficulty */}
+        <div className="px-4 pt-3 pb-1">
+          <div className="flex items-center justify-between mb-1.5">
+            {/* Title */}
+            <h3 className="text-lg font-bold text-gray-800 line-clamp-1 mr-2 group-hover:text-indigo-700 transition-colors">
+              {content.title}
+            </h3>
 
-        {/* Title */}
-        <h3 className="text-xl font-bold text-gray-800 hover:text-red-500 mb-3 line-clamp-2">
-          {content.title}
-        </h3>
-
-        {/* Content Preview */}
-        <div className="prose max-w-none text-sm text-gray-600 mb-4 line-clamp-3">
-          {renderMathContent(truncateText(content.content, 150))}
-        </div>
-
-        {/* Tags */}
-        {content.chapters && content.chapters.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {content.chapters.slice(0, 2).map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200"
-              >
-                <Tag className="w-3 h-3 mr-1" />
-                {tag.name}
-              </span>
-            ))}
-            {content.chapters.length > 2 && (
-              <span className="text-xs text-gray-500">+{content.chapters.length - 2} more</span>
+            {/* Difficulty */}
+            <span className={`bg-gradient-to-r ${getDifficultyColor(content.difficulty)} px-2 py-0.5 rounded-full text-xs font-medium shadow-sm flex items-center space-x-1 flex-shrink-0`}>
+              {getDifficultyIcon(content.difficulty)}
+              <span>{getDifficultyLabel(content.difficulty)}</span>
+            </span>
+          </div>
+          
+          {/* Subject and tags in one row */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+            {/* Subject */}
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-2 py-0.5 rounded-full text-xs font-medium">
+              {content.subject.name}
+            </span>
+            
+            {/* Tags */}
+            {content.chapters && content.chapters.length > 0 && (
+              <>
+                {content.chapters.slice(0, 2).map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                  >
+                    <Tag className="w-3 h-3 mr-1" />
+                    {tag.name}
+                  </span>
+                ))}
+                {content.chapters.length > 2 && (
+                  <span className="text-xs text-indigo-500">+{content.chapters.length - 2}</span>
+                )}
+              </>
+            )}
+            
+            {/* Class levels if available */}
+            {content.class_levels && content.class_levels.length > 0 && (
+              <>
+                {content.class_levels.slice(0, 1).map((level) => (
+                  <span
+                    key={level.id}
+                    className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded-full text-xs font-medium flex items-center"
+                  >
+                    <GraduationCap className="w-3 h-3 mr-1" />
+                    <span>{level.name}</span>
+                  </span>
+                ))}
+              </>
             )}
           </div>
-        )}
+        </div>
+        
+        {/* Main content */}
+        <div className="px-4 py-2 flex-1">
+          {/* Content Preview */}
+          <div className="prose max-w-none text-sm text-gray-600 line-clamp-2 overflow-hidden">
+            <TipTapRenderer content = {truncateText(content.content, 120)}></TipTapRenderer>
+        </div>
 
-        {/* Footer: Author, Date, Views, Comments */}
-        <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <User className="w-3 h-3" />
-              {content.author.username}
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {new Date(content.created_at).toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3" />
-              {content.view_count}
-            </span>
-            <span className="flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" />
-              {(content.comments || []).length}
-            </span>
+        {/* Compact footer with metadata and votes */}
+        <div className="bg-gray-50 px-3 py-2 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            {/* Left side with votes */}
+            <div className="flex items-center">
+              <VoteButtons
+                initialVotes={content.vote_count}
+                onVote={(value) => onVote(content.id, value)}
+                vertical={false}
+                userVote={content.user_vote}
+                size="sm"
+              />
+            </div>
+            
+            {/* Right side with compact metadata */}
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="flex items-center">
+                <User className="w-3 h-3 text-indigo-500 mr-1" />
+                <span className="truncate max-w-[80px]">{content.author.username}</span>
+              </span>
+              
+              <span className="flex items-center">
+                <Eye className="w-3 h-3 text-indigo-500 mr-1" />
+                <span>{content.view_count}</span>
+              </span>
+              
+              <span className="flex items-center">
+                <MessageSquare className="w-3 h-3 text-indigo-500 mr-1" />
+                <span>{(content.comments || []).length}</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Vote Buttons */}
-      <div className="bg-gray-50 px-6 py-3 flex justify-between items-center">
-        <VoteButtons
-          initialVotes={content.vote_count}
-          onVote={(value) => onVote(content.id, value)}
-          vertical={false}
-          userVote={content.user_vote}
-        />
-        <button
-          className="text-sm text-red-600 hover:text-red-700 font-medium"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/exercises/${content.id}`);
-          }}
-        >
-          Voir plus
-        </button>
-      </div>
+    </div>
     </div>
   );
 };

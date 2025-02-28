@@ -1,28 +1,45 @@
-import { forwardRef } from 'react';
+import React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-indigo-600 text-white hover:bg-indigo-700",
+        destructive: "bg-red-600 text-white hover:bg-red-700",
+        outline: "border border-gray-200 bg-white hover:bg-gray-100 hover:text-gray-900",
+        secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
+        ghost: "hover:bg-gray-100 hover:text-gray-900",
+        link: "text-indigo-600 underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-12 rounded-md px-8 text-base",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', ...props }, ref) => {
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = "button";
     return (
-      <button
-        className={cn(
-          'inline-flex items-center justify-center rounded-md font-medium transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
-          {
-            'mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg': variant === 'primary',
-            'bg-gray-100 text-gray-900 hover:bg-gray-200': variant === 'secondary',
-            'hover:bg-gray-100': variant === 'ghost',
-            'h-8 px-3 text-sm': size === 'sm',
-            'h-10 px-4': size === 'md',
-            'h-12 px-6': size === 'lg',
-          },
-          className
-        )}
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       />
@@ -30,6 +47,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   }
 );
 
-Button.displayName = 'Button';
+Button.displayName = "Button";
 
-export { Button };
+export { Button, buttonVariants };

@@ -1,20 +1,31 @@
-from rest_framework import status, views, generics
+from rest_framework import status, views
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.utils import timezone
-from django.db.models import Count, Q
-from .models import ViewHistory, UserProfile
+from django.db.models import Count
+from django.contrib.contenttypes.models import ContentType
+
+
+from .models import ViewHistory
 from .serializers import (
     UserSerializer, 
     UserStatsSerializer, 
-    UserHistorySerializer,
 )
-from exercises.models import Exercise,Vote
-from django.contrib.contenttypes.models import ContentType
 
+from things.serializers import UserHistorySerializer,ExerciseSerializer
+from things.models import Exercise,Vote
+
+
+import logging
+
+logger = logging.getLogger('django')
+
+
+#----------------------------LOGIN-------------------------------
 
 class LoginView(views.APIView):
     permission_classes = [AllowAny]
@@ -51,6 +62,10 @@ class LoginView(views.APIView):
 
         login(request, user)
         return Response(UserSerializer(user).data)
+    
+
+
+#----------------------------REGISTER-------------------------------
 
 class RegisterView(views.APIView):
     permission_classes = [AllowAny]
@@ -86,11 +101,20 @@ class RegisterView(views.APIView):
 
         login(request, user)
         return Response(UserSerializer(user).data)
+    
+
+#----------------------------LOGOUT-------------------------------
 
 class LogoutView(views.APIView):
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_200_OK)
+    
+
+
+
+#----------------------------API FUNCTIONS-------------------------------
+
 
 @api_view(['GET'])
 def get_current_user(request):
@@ -172,3 +196,84 @@ def mark_content_completed(request, content_id):
             {'error': 'Content not found'},
             status=status.HTTP_404_NOT_FOUND
         )
+    
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])  # Allow anyone to view public profiles
+def get_user_profile(request, username):
+    """
+    Get public profile for any user by username
+    """
+    try:
+        user = User.objects.get(username=username)
+        logger.info(f"GET request to view profile for user: {user.username}")
+        logger.info(f"User data: {request.data}")
+        
+        # Get basic user data
+        user_data = UserSerializer(user).data
+        
+        # Get contribution counts
+        contributions_count = Exercise.objects.filter(author=user).count()
+        
+        # Get reputation (total upvotes on their content)
+        exercise_content_type = ContentType.objects.get_for_model(Exercise)
+        reputation = Vote.objects.filter(
+            content_type=exercise_content_type,
+            object_id__in=Exercise.objects.filter(author=user).values_list('id', flat=True),
+            value=Vote.UP
+        ).count()
+        
+        # Add these to user data
+        user_data['contributionsCount'] = contributions_count
+        user_data['reputation'] = reputation
+        
+        return Response(user_data)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+@api_view(['GET'])
+def get_user_exercises(request, username):
+    """
+    Get exercises created by a specific user
+    """
+    try:
+        user = User.objects.get(username=username)
+        exercises = Exercise.objects.filter(author=user).order_by('-created_at')
+        
+        # Apply pagination if needed
+        page = request.query_params.get('page', 1)
+        per_page = request.query_params.get('per_page', 10)
+        
+        # You can add pagination code here
+        
+        data = ExerciseSerializer(exercises, many=True).data
+        return Response({
+            'results': data,
+            'count': exercises.count()
+        })
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_saved_content(request):
+    """
+    Get content saved by the current user
+    This uses the upvoted content until you implement a separate save feature
+    """
+    user = request.user
+    exercise_content_type = ContentType.objects.get_for_model(Exercise)
+    
+    upvoted_exercises = Exercise.objects.filter(
+        votes__user=user,
+        votes__value=Vote.UP,
+        votes__content_type=exercise_content_type
+    ).order_by('-votes__created_at')
+    
+    data = ExerciseSerializer(upvoted_exercises, many=True).data
+    return Response({
+        'results': data,
+        'count': upvoted_exercises.count()
+    })
+

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Filter, BookOpen, GraduationCap, ChevronUp, ChevronDown, Tag, BarChart3 } from 'lucide-react';
+import { X, Filter, BookOpen, GraduationCap, ChevronUp, ChevronDown, Tag } from 'lucide-react';
 import { getClassLevels, getSubjects, getChapters } from '@/lib/api';
-import { ClassLevelModel, SubjectModel, ChapterModel, Difficulty } from '@/types';
+import { ClassLevelModel, SubjectModel, ChapterModel } from '@/types';
 
 interface FiltersProps {
   onFilterChange: (filters: {
     classLevels: string[];
     subjects: string[];
     chapters: string[];
-    difficulties: Difficulty[];
   }) => void;
 }
 
@@ -16,7 +15,6 @@ type FilterCategories = {
   classLevels: string[];
   subjects: string[];
   chapters: string[];
-  difficulties: Difficulty[];
 };
 
 type FilterSection = {
@@ -25,7 +23,7 @@ type FilterSection = {
   icon: React.ReactNode;
 };
 
-export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
+export const LessonFilters: React.FC<FiltersProps> = ({ onFilterChange }) => {
   const [classLevels, setClassLevels] = useState<ClassLevelModel[]>([]);
   const [subjects, setSubjects] = useState<SubjectModel[]>([]);
   const [chapters, setChapters] = useState<ChapterModel[]>([]);
@@ -33,13 +31,11 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     classLevels: [],
     subjects: [],
     chapters: [],
-    difficulties: [],
   });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     classLevels: true,
     subjects: true,
     chapters: true,
-    difficulties: true,
   });
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
 
@@ -52,7 +48,6 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     { title: 'Niveau', category: 'classLevels', icon: <GraduationCap className="w-4 h-4 text-indigo-600" /> },
     { title: 'Matières', category: 'subjects', icon: <BookOpen className="w-4 h-4 text-purple-600" /> },
     { title: 'Chapitres', category: 'chapters', icon: <Tag className="w-4 h-4 text-indigo-600" /> },
-    { title: 'Difficulté', category: 'difficulties', icon: <BarChart3 className="w-4 h-4 text-purple-600" /> },
   ];
 
   useEffect(() => {
@@ -106,8 +101,6 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     try {
       setIsLoadingChapters(true);
       
-      // If your API has pagination, you can fetch all chapters by making multiple requests
-      // This is just an example - adjust according to your actual API implementation
       const data = await getChapters(
         selectedFilters.subjects, 
         selectedFilters.classLevels
@@ -122,21 +115,13 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     }
   };
 
-  const toggleFilter = (category: keyof FilterCategories, value: string | Difficulty) => {
+  const toggleFilter = (category: keyof FilterCategories, value: string) => {
     setSelectedFilters(prev => {
       const newFilters = { ...prev };
-      if (category === 'difficulties') {
-        if (newFilters.difficulties.includes(value as Difficulty)) {
-          newFilters.difficulties = newFilters.difficulties.filter(v => v !== value);
-        } else {
-          newFilters.difficulties = [...newFilters.difficulties, value as Difficulty];
-        }
+      if (newFilters[category].includes(value as string)) {
+        newFilters[category] = newFilters[category].filter(v => v !== value);
       } else {
-        if (newFilters[category].includes(value as string)) {
-          newFilters[category] = newFilters[category].filter(v => v !== value);
-        } else {
-          newFilters[category] = [...newFilters[category], value as string];
-        }
+        newFilters[category] = [...newFilters[category], value as string];
       }
       return newFilters;
     });
@@ -152,32 +137,6 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
     return id.charAt(0).toUpperCase() + id.slice(1);
   };
 
-  const getDifficultyColor = (difficulty: string): string => {
-    switch (difficulty) {
-      case 'easy':
-        return 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200';
-      case 'medium':
-        return 'bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200';
-      case 'hard':
-        return 'bg-red-100 text-red-800 hover:bg-red-200 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200 border-gray-200';
-    }
-  };
-
-  const getDifficultyLabel = (difficulty: string): string => {
-    switch (difficulty) {
-      case 'easy':
-        return 'Facile';
-      case 'medium':
-        return 'Moyen';
-      case 'hard':
-        return 'Difficile';
-      default:
-        return difficulty;
-    }
-  };
-
   const toggleSection = (category: string) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -187,7 +146,7 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
 
   const renderFilterCategory = (
     section: FilterSection,
-    items: { id: string; name: string }[] | Difficulty[]
+    items: { id: string; name: string }[]
   ) => {
     const { title, category, icon } = section;
     const isExpanded = expandedSections[category];
@@ -236,29 +195,19 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
               ) : (
                 <>
                   {items.map((item, index) => {
-                    const itemId = typeof item === 'string' ? item : item.id;
-                    const itemName = typeof item === 'string' ? 
-                      getDifficultyLabel(item) : 
-                      item.name;
-                    
-                    const isSelected = selectedFilters[category].includes(itemId as any);
+                    const isSelected = selectedFilters[category].includes(item.id);
                     
                     let buttonClass = isSelected
                       ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200';
                     
-                    // Override for difficulty filters
-                    if (category === 'difficulties' && !isSelected) {
-                      buttonClass = getDifficultyColor(itemId);
-                    }
-                    
                     return (
                       <button
-                        key={`${category}-${itemId}-${index}`}
-                        onClick={() => toggleFilter(category, itemId)}
+                        key={`${category}-${item.id}-${index}`}
+                        onClick={() => toggleFilter(category, item.id)}
                         className={`px-3 py-1.5 rounded-full text-sm transition-all duration-200 border ${buttonClass} shadow-sm hover:shadow`}
                       >
-                        {itemName}
+                        {item.name}
                       </button>
                     );
                   })}
@@ -292,7 +241,6 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
       classLevels: [],
       subjects: [],
       chapters: [],
-      difficulties: [],
     });
   };
 
@@ -321,13 +269,11 @@ export const Filters: React.FC<FiltersProps> = ({ onFilterChange }) => {
         {filterSections.map(section => 
           renderFilterCategory(
             section, 
-            section.category === 'difficulties' 
-              ? ['easy', 'medium', 'hard'] as Difficulty[]
-              : section.category === 'classLevels'
-                ? classLevels
-                : section.category === 'subjects'
-                  ? subjects
-                  : chapters
+            section.category === 'classLevels'
+              ? classLevels
+              : section.category === 'subjects'
+                ? subjects
+                : chapters
           )
         )}
 

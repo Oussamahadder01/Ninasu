@@ -1,6 +1,7 @@
 import React from 'react';
 import { Content, VoteValue } from '@/types';
 import { ContentCard } from './ContentCard';
+import '@/lib/styles.css'
 
 interface ContentListProps {
   contents: Content[];
@@ -16,7 +17,9 @@ export const ContentList: React.FC<ContentListProps> = ({
   onEdit
 }) => {
   return (
-    <div className="space-y-4">
+    // Return the items directly without the container div
+    // This allows the parent grid to control the layout
+    <>
       {contents.map((content) => (
         <ContentCard 
           key={content.id} 
@@ -26,6 +29,6 @@ export const ContentList: React.FC<ContentListProps> = ({
           onEdit={onEdit}
         />
       ))}
-    </div>
+    </>
   );
 }

@@ -9,6 +9,7 @@ interface AuthContextType {
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUser: (userData: User) => void; // Add this line
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,7 +54,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await apiLogout();
     setUser(null);
   };
-
+  const updateUser = (userData: User) => {
+    setUser(userData);
+  };
   const value = {
     user,
     isAuthenticated: !!user,
@@ -61,8 +64,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     refreshUser,
+    updateUser, // Add this to the context value
   };
-
+  
   return (
     <AuthContext.Provider value={value}>
       {children}

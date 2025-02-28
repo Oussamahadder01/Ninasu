@@ -71,18 +71,28 @@ export function EditExercise() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
-        <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
-        <h1 className="text-3xl font-bold mb-2">Edit Exercise</h1>
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    {/* Simple Header */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+      <div className="flex items-center mb-4">
+        <button 
+          onClick={() => navigate('/exercises')}
+          className="mr-3 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors duration-200"
+          aria-label="Go back"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create New Content</h1>
       </div>
 
+      {/* Error display - if not handled by ContentEditor */}
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
-          {error}
+        <div className="mb-6 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md">
+          <p>{error}</p>
         </div>
       )}
-      <div className="bg-white rounded-lg shadow-md p-6">
+
+      
         <ContentEditor
           onSubmit={handleSubmit}
           initialValues={{
@@ -92,6 +102,7 @@ export function EditExercise() {
             subject: exercise.subject?.id || '',
             difficulty: exercise.difficulty as Difficulty,
             chapters: exercise.chapters?.map(chapter => chapter.id) || [],
+            solution_content : exercise.solution?.content
           }}
         />
       </div>

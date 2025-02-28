@@ -1,37 +1,63 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit, Trash2, Tag, ChevronDown, Lightbulb, Award, MessageSquare, GitPullRequest, Activity, BookOpen } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Edit, 
+  Trash2, 
+  Tag, 
+  ChevronDown, 
+  Lightbulb, 
+  Award, 
+  MessageSquare, 
+  GitPullRequest, 
+  Activity, 
+  BookOpen,
+  GraduationCap,
+  BarChart3,
+  Clock,
+  User,
+  PenSquare,
+  Timer,
+  Bookmark,
+  CheckCircle,
+  XCircle,
+  ThumbsUp
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getContentById, voteExercise, addComment, markContentViewed, deleteContent, voteComment, updateComment, deleteComment, deleteSolution, voteSolution, addSolution } from '@/lib/api';
-import { Content, Comment, VoteValue } from '@/types';
+import { Content, Comment, VoteValue, Difficulty } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { renderLatexContent } from '@/lib/utils';
 import { VoteButtons } from '@/components/VoteButtons';
-import DualPaneEditor from '@/components/DualPaneEditor';
+import DualPaneEditor from '@/components/editor/DualPaneEditor';
 import { InlineMath, BlockMath } from "react-katex";
 import { CommentSection } from '@/components/CommentSection';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-
-import {
-  faBook,
-  faLayerGroup,
-  faChartBar,
-
-} from '@fortawesome/free-solid-svg-icons';
+import TipTapRenderer from '@/components/editor/TipTapRenderer';
 
 const renderMathContent = (text: string) => {
+  if (!text) return null;
+  
+  // Split the text into regular text and math expressions
   const parts = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+  
   return parts.map((part, index) => {
     if (part.startsWith('$$') && part.endsWith('$$')) {
+      // For block math (centered)
       return (
         <div key={index} className="my-2 text-center">
           <BlockMath math={part.slice(2, -2)} />
         </div>
       );
     } else if (part.startsWith('$') && part.endsWith('$')) {
-      return <InlineMath key={index} math={part.slice(1, -1)} />;
+      // For inline math, allow wrapping by adding spaces
+      const mathContent = part.slice(1, -1); // Remove the surrounding `$`
+      return (
+        <span key={index} className="inline-block whitespace-normal">
+          <InlineMath math={mathContent} />
+        </span>
+      );
     } else {
-      return <span key={index}>{part}</span>;
+      // Regular text
+      return <span className='latex-style text-xl text-gray-800' key={index}>{part}</span>;
     }
   });
 };
@@ -47,6 +73,13 @@ export function ExerciseDetail() {
   const [solutionVisible, setSolutionVisible] = useState(false);
   const [solution, setSolution] = useState('');
   const [activeSection, setActiveSection] = useState<'exercise' | 'discussions' | 'proposals' | 'community' | 'activity'>('exercise');
+  
+  // States for new functionalities
+  const [timer, setTimer] = useState<number>(0);
+  const [timerActive, setTimerActive] = useState<boolean>(false);
+  const [completed, setCompleted] = useState<boolean | null>(null);
+  const [savedForLater, setSavedForLater] = useState<boolean>(false);
+  const [difficultyRating, setDifficultyRating] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -55,16 +88,68 @@ export function ExerciseDetail() {
     }
   }, [id]);
 
-  const getDifficultyColor = (difficulty: string): string => {
+  // Timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (timerActive) {
+      interval = setInterval(() => {
+        setTimer(prev => prev + 1);
+      }, 1000);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [timerActive]);
+
+  const getDifficultyColor = (difficulty: Difficulty): string => {
     switch (difficulty) {
       case 'easy':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'from-emerald-600 to-green-600 text-white';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'from-amber-600 to-yellow-600 text-white';
       case 'hard':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'from-red-600 to-pink-600 text-white';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'from-gray-600 to-gray-500 text-white';
+    }
+  };
+  
+  const getDifficultyLabel = (difficulty: Difficulty): string => {
+    switch (difficulty) {
+      case 'easy':
+        return 'Facile';
+      case 'medium':
+        return 'Moyen';
+      case 'hard':
+        return 'Difficile';
+      default:
+        return difficulty;
+    }
+  };
+  
+  const getDifficultyIcon = (difficulty: Difficulty) => {
+    switch (difficulty) {
+      case 'easy':
+        return <BarChart3 className="w-4 h-4" />;
+      case 'medium':
+        return (
+          <div className="flex">
+            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
+          </div>
+        );
+      case 'hard':
+        return (
+          <div className="flex">
+            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
+          </div>
+        );
+      default:
+        return <BarChart3 className="w-4 h-4" />;
     }
   };
 
@@ -270,8 +355,16 @@ export function ExerciseDetail() {
     }
   };
 
-  const toggleSolutionVisibility = () => {
+  const toggleSolutionVisibility = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setSolutionVisible(!solutionVisible);
+  };
+
+  const handleSolutionToggle = () => {
+    setShowSolution(!showSolution);
+    if (!solutionVisible) {
+      setSolutionVisible(true);
+    }
   };
 
   const handleAddSolution = async (solutionContent: string) => {
@@ -312,19 +405,73 @@ export function ExerciseDetail() {
     }
   };
 
+  // Functions for new features
+  const toggleTimer = () => {
+    setTimerActive(!timerActive);
+  };
+
+  const resetTimer = () => {
+    setTimer(0);
+    setTimerActive(false);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const toggleSavedForLater = () => {
+    setSavedForLater(!savedForLater);
+    // Here you would call an API to save/unsave the exercise
+  };
+
+  const markAsCompleted = (status: boolean) => {
+    setCompleted(status);
+    // Here you would call an API to mark the exercise as completed
+  };
+
+  const rateDifficulty = (rating: number) => {
+    setDifficultyRating(rating);
+    // Here you would call an API to rate the difficulty
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 pt-24 pb-16 flex justify-center items-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin mb-4"></div>
+          <p className="text-gray-600">Chargement de l'exercice...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !exercise) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-md p-4">
-          {error || 'Exercise not found'}
+      <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-sm">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm">{error || 'Exercice introuvable'}</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-center">
+            <Button 
+              onClick={() => navigate('/exercises')}
+              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 rounded-full"
+            >
+              <ArrowLeft className="w-4 h-4 mr-4" />
+              Retour aux exercices
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -335,304 +482,480 @@ export function ExerciseDetail() {
   const canEditSolution = exercise.solution && user?.id === exercise.solution.author.id;
 
   return (
-    <div className="max-w-7xl bg-white mx-auto px-4 py-8">
-
-      {/* Navigation Tabs */}
-      <div className="flex items-start justify-between">
-      <div className="flex-1">
-      <div className="flex items-center gap-3 mb-3">
+    <div className="min-h-screen bg-gray-50 pt-24 pb-16">
+      <div className="max-w-7xl mx-auto px-4">
+        {/* Back Button - Now more prominent */}
+        <div className="mb-10">
+          <Button 
+            onClick={() => navigate('/exercises')}
+            variant="outline"
+            className="rounded-full border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Retour aux exercices
+          </Button>
+        </div>
         
-      <ArrowLeft className="w-9 h-9 cursor-pointer mr-2" onClick={() => navigate('/exercises')} />   
-      <h1 className="text-2xl font-bold mb-2">{exercise.title}</h1>
-      <FontAwesomeIcon icon={faChartBar} className={` ${getDifficultyColor(exercise.difficulty)}`} />
-      <label className={`px-7 py-0.5 rounded-full text-sm font-semibold border ${getDifficultyColor(exercise.difficulty)}`}>
-
-              {exercise.difficulty}
-            </label>
-      
-      </div>
-      </div>
-      </div>
-
-      {(exercise.chapters?.length > 0 || exercise.class_levels?.length > 0) && (
-  <div className="flex items-start gap-4 mb-2"> {/* Conteneur Flex pour aligner horizontalement */}
-    {exercise.chapters && exercise.chapters.length > 0 && (
-      <div className="flex items-center gap-1">
-        <Tag className="w-4 h-4 text-gray-600" />
-        <div className="flex flex-wrap gap-2">
-          {exercise.chapters.map((tag) => (
-            <span 
-              key={tag.id} 
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-blue-100 text-blue-800"
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-    {exercise.class_levels && exercise.class_levels.length > 0 && (
-      <div className="flex items-center gap-1">
-        <FontAwesomeIcon 
-          icon={faLayerGroup} 
-          className="text-orange-800"
-        />
-        <div className="flex flex-wrap gap-2">
-          {exercise.class_levels.map((tag) => (
-            <span 
-              key={tag.id} 
-              className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-orange-100 text-orange-800"
-            >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      </div>
-    )}
-    {exercise.subject && ( // Afficher le sujet si défini
-      <div className="flex items-center gap-1">
-        <FontAwesomeIcon 
-          icon={faBook} 
-          className="text-red-800"
-        />
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-semibold bg-red-100 text-red-800">
-          {exercise.subject.name}
-        </span>
-      </div>
-    )}
-  </div>
-)}
-
-
-      <div className="flex bg-white border-b mb-8">
-        
-
-      
-
-        <button
-          onClick={() => setActiveSection('exercise')}
-          className={`px-6 py-4 flex items-center text-lg space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
-            activeSection === 'exercise' 
-              ? 'border-red-500 text-red-600 bg-gray-50' 
-              : 'border-transparent text-gray-600 hover:border-gray-300'
-          }`}
-        >
-          <BookOpen className="w-4 h-4" />
-          <span className="font-medium">Exercise</span>
-        </button>
-        <button
-          onClick={() => setActiveSection('discussions')}
-          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
-            activeSection === 'discussions' 
-              ? 'border-red-500 text-red-600 bg-gray-50' 
-              : 'border-transparent text-gray-600 hover:border-gray-300'
-          }`}
-        >
-          <MessageSquare className="w-4 h-4" />
-          <span className="font-medium">Discussions</span>
-          {exercise.comments.length > 0 && (
-            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-gray-200">
-              {exercise.comments.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveSection('proposals')}
-          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
-            activeSection === 'proposals' 
-              ? 'border-red-500 text-red-600 bg-gray-50' 
-              : 'border-transparent text-gray-600 hover:border-gray-300'
-          }`}
-        >
-          <GitPullRequest className="w-4 h-4" />
-          <span className="font-medium">Alternative Solutions</span>
-          
-        </button>
-        <button
-          onClick={() => setActiveSection('activity')}
-          className={`px-6 py-4 flex items-center space-x-2 border-b-2 transition-colors duration-150 hover:bg-gray-50 ${
-            activeSection === 'activity' 
-              ? 'border-red-500 text-red-600 bg-gray-50' 
-              : 'border-transparent text-gray-600 hover:border-gray-300'
-          }`}
-        >
-          <Activity className="w-4 h-4" />
-          <span className="font-medium">Activity</span>
-          
-        </button>
-
-      </div>
-{/* Exercise and Solution Sections */}
-{activeSection === 'exercise' && (
-  <>
-    {/* Exercise Section */}
-    <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      {/* Content header */}
-      {/* Content */}
-      <div className="prose max-w-none mb-8">
-        {renderMathContent(exercise.content)}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center border-t pt-4">
-        <div className="flex-1">
-          <VoteButtons
-            initialVotes={exercise.vote_count}
-            onVote={(value) => handleVote(value, 'exercise')}
-            vertical={false}
-            userVote={exercise.user_vote}
-          />
-        </div>
-        <div className="text-sm text-gray-600">
-          by {exercise.author?.username} • {new Date(exercise.created_at).toLocaleDateString()}
-        </div>
-        {isAuthor && (
-          <div className="flex gap-2 flex-shrink-0 ml-4">
-            <Button variant="ghost" onClick={handleEdit} className="text-gray-600 hover:text-gray-900">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            <Button variant="ghost" onClick={handleDelete} className="text-red-600 hover:text-red-700">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-
-    {/* Solution Section - Now separate but still under activeSection condition */}
-    {hasSolution && (
-      <div className="bg-white rounded-lg shadow-md">
-        <div 
-          className={`transition-all duration-300 ${showSolution ? 'ring-2 ring-blue-500' : ''}`}
-          onClick={() => setShowSolution(!showSolution)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              setShowSolution(!showSolution);
-            }
-          }}
-        >
-          <div className="px-8 py-6 cursor-pointer hover:bg-gray-50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Lightbulb className={`w-6 h-6 ${showSolution ? 'text-blue-500' : 'text-gray-600'}`} />
-                <h3 className="text-xl font-semibold">Solution</h3>
-                {exercise.solution && exercise.solution.vote_count > 0 && (
-                  <div className="flex items-center gap-1 text-yellow-600">
-                    <Award className="w-4 h-4" />
-                    <span className="text-sm font-medium">
-                      {exercise.solution.vote_count}
+        <div className="grid grid-cols-12 gap-6">
+          {/* Main Content Area - Now spans cols 1-9 */}
+          <div className="col-span-12 lg:col-span-9">
+            {/* Exercise Header - Redesigned */}
+            <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+              <div className="p-6">
+                <div className="flex flex-col gap-4">
+                  {/* Title and Actions Row */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h1 className="text-3xl font-bold text-gray-900">{exercise.title}</h1>
+                    
+                    <div className="flex gap-2 shrink-0">
+                      {isAuthor && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            onClick={handleEdit} 
+                            className="rounded-full text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            onClick={handleDelete} 
+                            className="rounded-full text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Supprimer
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Metadata Badges */}
+                  <div className="flex flex-wrap gap-3">
+                    {/* Subject Badge */}
+                    {exercise.subject && (
+                      <span className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium shadow-sm flex items-center gap-2">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span>{exercise.subject.name}</span>
+                      </span>
+                    )}
+                    
+                    {/* Class Level Badge */}
+                    {exercise.class_levels && exercise.class_levels.length > 0 && (
+                      <span className="bg-white border border-indigo-200 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium shadow-sm flex items-center gap-2">
+                        <GraduationCap className="w-3.5 h-3.5" />
+                        <span>{exercise.class_levels[0].name}</span>
+                      </span>
+                    )}
+                    
+                    {/* Difficulty Badge */}
+                    <span 
+                      className={`bg-gradient-to-r ${getDifficultyColor(exercise.difficulty)} px-3 py-1 rounded-full text-sm font-medium shadow-sm flex items-center gap-2`}
+                    >
+                      {getDifficultyIcon(exercise.difficulty)}
+                      <span>{getDifficultyLabel(exercise.difficulty)}</span>
+                    </span>
+                    
+                    {/* Author Badge */}
+                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-gray-500" />
+                      <span>{exercise.author?.username}</span>
+                    </span>
+                    
+                    {/* Date Badge */}
+                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-gray-500" />
+                      <span>{new Date(exercise.created_at).toLocaleDateString()}</span>
                     </span>
                   </div>
-                )}
+                  
+                  {/* Chapter Tags */}
+                  {exercise.chapters && exercise.chapters.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {exercise.chapters.map((tag) => (
+                        <span 
+                          key={tag.id} 
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100"
+                        >
+                          <Tag className="w-3 h-3 mr-1.5" />
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Tab Navigation - Now directly under title */}
+              <div className="border-t border-gray-200">
+                <div className="flex overflow-x-auto">
+                  <TabButton 
+                    active={activeSection === 'exercise'} 
+                    onClick={() => setActiveSection('exercise')}
+                    icon={<BookOpen className="w-4 h-4" />}
+                    label="Exercice"
+                  />
+                  
+                  <TabButton 
+                    active={activeSection === 'discussions'} 
+                    onClick={() => setActiveSection('discussions')}
+                    icon={<MessageSquare className="w-4 h-4" />}
+                    label="Discussions"
+                    count={exercise.comments.length}
+                  />
+                  
+                  <TabButton 
+                    active={activeSection === 'proposals'} 
+                    onClick={() => setActiveSection('proposals')}
+                    icon={<GitPullRequest className="w-4 h-4" />}
+                    label="Solutions alternatives"
+                  />
+                  
+                  <TabButton 
+                    active={activeSection === 'activity'} 
+                    onClick={() => setActiveSection('activity')}
+                    icon={<Activity className="w-4 h-4" />}
+                    label="Activité"
+                  />
+                </div>
+              </div>
+            </div>
 
-              <div className="flex items-center gap-4">
-                {canEditSolution && (
-                  <div className="flex items-center gap-0">
-                    <Button 
-                      variant="ghost" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditSolution();
-                      }} 
-                      className="text-gray-600 hover:text-blue-600 p-3 m-3"
+            {/* Tab Content */}
+            {activeSection === 'exercise' && (
+              <>
+                {/* Exercise Content */}
+                <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                  <div className="p-8">
+                    <div className="prose max-w-none mb-6">
+                    <TipTapRenderer content={exercise.content} />
+
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <VoteButtons
+                        initialVotes={exercise.vote_count}
+                        onVote={(value) => handleVote(value, 'exercise')}
+                        vertical={false}
+                        userVote={exercise.user_vote}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Solution Section */}
+                {hasSolution ? (
+                  <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                    <div 
+                      className={`transition-all duration-300 ${showSolution ? 'ring-2 ring-indigo-500' : ''}`}
                     >
-                      <Edit className="w-5 h-5" />
+                      <div 
+                        className="px-6 py-5 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={handleSolutionToggle}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-full ${showSolution ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+                              <Lightbulb className={`w-5 h-5 ${showSolution ? 'text-indigo-600' : 'text-gray-600'}`} />
+                            </div>
+                            <h3 className="text-xl font-semibold">Solution</h3>
+                            {exercise.solution && exercise.solution.vote_count > 0 && (
+                              <div className="flex items-center gap-1 bg-amber-100 text-amber-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <Award className="w-3.5 h-3.5" />
+                                <span>{exercise.solution.vote_count}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            {canEditSolution && (
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  variant="ghost" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditSolution();
+                                  }} 
+                                  className="text-gray-500 hover:text-indigo-600 rounded-full h-8 w-8 p-0"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteSolution();
+                                  }} 
+                                  className="text-gray-500 hover:text-red-600 rounded-full h-8 w-8 p-0"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            )}
+
+                            <Button
+                              variant="ghost"
+                              onClick={toggleSolutionVisibility}
+                              className="text-gray-500 hover:text-indigo-600 h-8 w-8 p-0 rounded-full"
+                            >
+                              <ChevronDown className={`w-5 h-5 transition-transform ${solutionVisible ? "rotate-180" : ""}`} />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {solutionVisible && exercise.solution && (
+                        <div className="px-6 py-5 border-t border-gray-100">
+                          <div className="prose max-w-none">
+                          <TipTapRenderer content={exercise.solution.content} />
+
+                          </div>
+                          <div className="mt-6 flex items-center justify-between">
+                            <VoteButtons
+                              initialVotes={exercise.solution.vote_count}
+                              onVote={(value) => handleVote(value, 'solution')}
+                              vertical={false}
+                              userVote={exercise.solution.user_vote}
+                              size="sm"
+                            />
+                            <div className="text-sm text-gray-600 flex items-center gap-2">
+                              <User className="w-3.5 h-3.5 text-gray-500" />
+                              <span>Solution par {exercise.solution.author.username}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : isAuthor ? (
+                  /* Add Solution Section for Author */
+                  <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 rounded-full bg-indigo-100">
+                          <PenSquare className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold">Ajouter une solution</h3>
+                      </div>
+                      
+                      <DualPaneEditor 
+                        content={solution} 
+                        setContent={setSolution} 
+                      />
+                      
+                      <div className="mt-6 flex justify-end">
+                        <Button
+                          onClick={() => handleAddSolution(solution)}
+                          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md rounded-full px-6"
+                          disabled={!solution.trim()}
+                        >
+                          <Lightbulb className="w-4 h-4 mr-2" />
+                          Publier la solution
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+
+            {/* Discussions Section */}
+            {activeSection === 'discussions' && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                <div className="p-6" id="comments">
+                  <CommentSection
+                    comments={exercise?.comments || []}
+                    onAddComment={handleAddComment}
+                    onVoteComment={handleVoteComment}
+                    onEditComment={handleEditComment}
+                    onDeleteComment={handleDeleteComment}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Proposals Section Placeholder */}
+            {activeSection === 'proposals' && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                <div className="p-6 text-center py-16">
+                  <GitPullRequest className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Solutions alternatives</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Cette fonctionnalité sera bientôt disponible. Elle permettra aux utilisateurs de proposer leurs propres solutions à cet exercice.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Activity Section Placeholder */}
+            {activeSection === 'activity' && (
+              <div className="bg-white rounded-xl shadow-md overflow-hidden mb-6">
+                <div className="p-6 text-center py-16">
+                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Activité</h3>
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    Le journal d'activité pour cet exercice sera bientôt disponible, montrant les votes, commentaires et autres interactions.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Right Sidebar - Now spans cols 10-12 with timer at top */}
+          <div className="col-span-12 lg:col-span-3">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden sticky top-28">
+              {/* Timer Section - Now at the top of the sidebar */}
+              <div className="p-4 bg-gradient-to-r from-indigo-700 to-purple-700 text-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium flex items-center">
+                    <Timer className="w-4 h-4 mr-2" />
+                    Chronomètre
+                  </h3>
+                  <div className="font-mono text-xl">{formatTime(timer)}</div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Button 
+                    onClick={toggleTimer} 
+                    className={`flex-1 text-xs ${timerActive ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                  >
+                    {timerActive ? 'Pause' : 'Démarrer'}
+                  </Button>
+                  <Button 
+                    onClick={resetTimer} 
+                    variant="outline" 
+                    className="flex-1 text-xs bg-white text-indigo-700 border-white hover:bg-indigo-100"
+                  >
+                    Réinitialiser
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Other Tools */}
+              <div className="divide-y divide-gray-100">
+                {/* Save for Later */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Bookmark className={`w-5 h-5 ${savedForLater ? 'text-amber-500 fill-amber-500' : 'text-gray-400'}`} />
+                      <span className="font-medium">Enregistrer pour plus tard</span>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={toggleSavedForLater} 
+                    variant={savedForLater ? "default" : "outline"} 
+                    className={`w-full text-sm ${savedForLater ? 'bg-amber-500 hover:bg-amber-600' : 'border-gray-300'}`}
+                  >
+                    {savedForLater ? 'Enregistré' : 'Enregistrer'}
+                  </Button>
+                </div>
+                
+                {/* Mark as Completed */}
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ThumbsUp className="w-5 h-5 text-indigo-600" />
+                    <span className="font-medium">Marquer comme terminé</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => markAsCompleted(true)} 
+                      variant={completed === true ? "default" : "outline"} 
+                      className={`flex-1 text-sm ${completed === true ? 'bg-green-500 hover:bg-green-600' : 'border-gray-300'}`}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Réussi
                     </Button>
                     <Button 
-                      variant="ghost" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSolution();
-                      }} 
-                      className="text-gray-600 hover:text-red-600 p-0 m-0"
+                      onClick={() => markAsCompleted(false)} 
+                      variant={completed === false ? "default" : "outline"} 
+                      className={`flex-1 text-sm ${completed === false ? 'bg-red-500 hover:bg-red-600' : 'border-gray-300'}`}
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <XCircle className="w-4 h-4 mr-2" />
+                      À revoir
                     </Button>
                   </div>
-                )}
-
-                <Button
-                  variant="ghost"
-                  onClick={toggleSolutionVisibility}
-                  className="text-gray-600 hover:text-blue-600"
-                >
-                  <ChevronDown className={`w-8 h-8 transition-transform ${solutionVisible ? "rotate-180" : ""}`} />
-                </Button>
+                </div>
+                
+                {/* Difficulty Rating */}
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    <span className="font-medium">Évaluer la difficulté</span>
+                  </div>
+                  <div className="flex gap-1 mt-2">
+                    {[1, 2, 3, 4, 5].map(rating => (
+                      <button 
+                        key={rating}
+                        onClick={() => rateDifficulty(rating)}
+                        className={`flex-1 p-2 rounded-md transition-colors ${
+                          difficultyRating === rating 
+                            ? 'bg-indigo-600 text-white' 
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        {rating}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Exercise Statistics */}
+                <div className="p-4">
+                  <h3 className="font-medium text-gray-700 mb-3">Statistiques</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Vues</span>
+                      <span className="font-medium">{exercise.view_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Votes</span>
+                      <span className="font-medium">{exercise.vote_count}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Commentaires</span>
+                      <span className="font-medium">{exercise.comments.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Créé le</span>
+                      <span className="font-medium">{new Date(exercise.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-
-          {solutionVisible && exercise.solution && (
-            <div className="px-8 pb-6" onClick={(e) => e.stopPropagation()}>
-              <div className="border-t pt-6">
-                <div className="prose max-w-none">
-                  <div 
-                    dangerouslySetInnerHTML={{ 
-                      __html: renderLatexContent(exercise.solution.content) 
-                    }} 
-                  />
-                </div>
-                <div className="mt-6 flex items-center justify-between">
-                  <VoteButtons
-                    initialVotes={exercise.solution.vote_count}
-                    onVote={(value) => handleVote(value, 'solution')}
-                    vertical={false}
-                    userVote={exercise.solution.user_vote}
-                  />
-                  <div className="text-sm text-gray-600">
-                    Solution by {exercise.solution.author.username}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
-    )}
-  </>
-)}
-
-
-
-      {/* Discussions Section */}
-      {activeSection === 'discussions' && (
-        <div className="mt-8" id="comments">
-          <CommentSection
-          comments={exercise?.comments || []}
-          onAddComment={handleAddComment}
-          onVoteComment={handleVoteComment}
-          onEditComment={handleEditComment}
-          onDeleteComment={handleDeleteComment}
-        />
-        </div>
-      )}
-
-      {/* Solution Section */}
-      
-
-      {/* Add Solution Section */}
-      {!hasSolution && isAuthor && (
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-6">Add Solution</h2>
-          <div className="bg-white rounded-lg shadow-md p-8">
-          <DualPaneEditor 
-              content={solution} setContent={setSolution} 
-            />
-            <Button
-              onClick={() => handleAddSolution(solution)}
-              className="mt-4 bg-gradient-to-r from-gray-900 to-red-900 text-white shadow-lg"
-              disabled={!solution.trim()}
-            >
-              Add Solution
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
+  );
+}
+
+// Tab Button Component
+function TabButton({ active, onClick, icon, label, count }: { 
+  active: boolean; 
+  onClick: () => void; 
+  icon: React.ReactNode; 
+  label: string;
+  count?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-5 py-4 flex items-center space-x-2 border-b-2 transition-colors whitespace-nowrap ${
+        active 
+          ? 'border-indigo-600 text-indigo-700 bg-indigo-50' 
+          : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:border-gray-300'
+      }`}
+    >
+      {icon}
+      <span className="font-medium">{label}</span>
+      {count !== undefined && count > 0 && (
+        <span className={`px-2 py-0.5 text-xs rounded-full ${
+          active ? 'bg-indigo-200 text-indigo-800' : 'bg-gray-200 text-gray-700'
+        }`}>
+          {count}
+        </span>
+      )}
+    </button>
   );
 }

@@ -4,7 +4,7 @@ import Cookies from 'js-cookie';
 import { SortOption, ClassLevelModel, SubjectModel, ChapterModel, Solution, Difficulty } from '../types';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: 'http://192.168.1.47:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -18,6 +18,118 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+
+// Add these functions to your existing lib/api.ts file
+
+import { User, Content } from "@/types";
+
+/**
+ * Get user profile by ID or username
+ * @param userId - User ID or username
+ * @returns User object
+ */
+// Add these functions to your existing lib/api.ts file
+
+
+/**
+ * Get user profile by ID or username
+ * This works with your current backend but uses the current user endpoint
+ * for now since there's no specific endpoint for getting other users
+ * 
+ * @param userId - User ID or username
+ * @returns User object
+ */
+export async function getUserById(userId: string): Promise<User> {
+  try {
+    // Currently your backend doesn't have a specific endpoint to get user by ID
+    // You should use your current user endpoint for the logged-in user
+    // For other users, we'll need to add that endpoint
+    const response = await fetch('/api/auth/user');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    
+    // Fallback for development - remove when backend is updated
+    return {
+      id: userId,
+      username: "user_" + userId.substring(0, 5),
+      email: `user${userId.substring(0, 5)}@example.com`,
+      isAuthenticated: false,
+      joinedAt: new Date().toISOString(),
+      contributionsCount: 0,
+      reputation: 0,
+      bio: "This is a temporary user profile until the backend endpoint is implemented."
+    };
+  }
+}
+
+/**
+ * Get exercises created by a specific user
+ * @param userId - User ID or username
+ * @returns Object containing results array of Content
+ */
+export async function getUserContributions(userId: string): Promise<{ results: Content[] }> {
+  try {
+    // You need to create this endpoint in your Django backend
+    const response = await fetch(`/api/exercises?author=${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user contributions: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching user contributions:", error);
+    
+    // Return empty results array until backend is implemented
+    return {
+      results: []
+    };
+  }
+}
+
+/**
+ * Get exercises saved by the current user
+ * Note: This requires authentication
+ * @returns Object containing results array of Content
+ */
+export async function getSavedContents(): Promise<{ results: Content[] }> {
+  try {
+    // This would use the user history endpoint for upvoted content
+    // since you don't have a specific "saved" functionality yet
+    const response = await fetch('/api/users/history');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch saved content: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Use the upvoted content from history as "saved" for now
+    return {
+      results: data.upvoted || []
+    };
+  } catch (error) {
+    console.error("Error fetching saved content:", error);
+    
+    // Return empty results array until backend is implemented
+    return {
+      results: []
+    };
+  }
+}
+
+/**
+ * Get user statistics (works with your current backend)
+ * @returns User statistics
+ */
+
 type VoteValue = 1 | -1 | 0;  // Matches Vote.UP, Vote.DOWN, Vote.UNVOTE
 type VoteTarget = 'exercise' | 'solution' | 'comment';
 
@@ -198,6 +310,10 @@ export const getChapters = async (subjectIds?: string |string[], classLevelIds?:
     ...(classLevelIds && { class_level:  classLevelIds }),
   };
   const response = await api.get('/chapters/', { params });
+
+  console.log('Here u go')
+
+  console.log(response.data.results)
   return response.data.results || [];
 };
 
@@ -212,10 +328,7 @@ export const updateUserProfile = async (data: any) => {
   return response.data;
 };
 
-export const getUserContributions = async (username: string) => {
-  const response = await api.get(`/users/${username}/contributions/`);
-  return response.data;
-};
+
 
 // User History and Stats
 export const getUserHistory = async () => {
@@ -239,3 +352,5 @@ export const uploadImage = async (file: File) => {
   });
   return response.data.url;
 };
+
+

@@ -1,8 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, ViewHistory
-from exercises.models import Exercise
-from exercises.serializers import ExerciseSerializer
+from .models import UserProfile
+
+
+
+
+#----------------------------USERPROFILE-------------------------------
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -23,17 +26,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'level_progress'
         )
 
-class UpdateUserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserProfile
-        fields = (
-            'bio',
-            'avatar',
-            'favorite_subjects',
-            'github_username',
-            'website',
-            'location'
-        )
+#----------------------------USER-------------------------------
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(read_only=True)
@@ -49,12 +42,9 @@ class UserSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('date_joined',)
 
-class ViewHistorySerializer(serializers.ModelSerializer):
-    content = ExerciseSerializer()
 
-    class Meta:
-        model = ViewHistory
-        fields = ('content', 'viewed_at', 'completed')
+
+#----------------------------USERSTATS-------------------------------
 
 class UserStatsSerializer(serializers.Serializer):
     exercisesCompleted = serializers.SerializerMethodField()
@@ -74,6 +64,16 @@ class UserStatsSerializer(serializers.Serializer):
         return self.context.get('stats', {}).get('totalUpvotes', 0)
 
 
-class UserHistorySerializer(serializers.Serializer):
-    recentlyViewed = ExerciseSerializer(many=True)
-    upvoted = ExerciseSerializer(many=True)
+#----------------------------UPDATE USERPROFILE (TOCHANGE)-------------------------------
+
+class UpdateUserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = (
+            'bio',
+            'avatar',
+            'favorite_subjects',
+            'github_username',
+            'website',
+            'location'
+        )
